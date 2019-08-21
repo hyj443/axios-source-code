@@ -6,47 +6,48 @@ var Axios = require('./core/Axios');
 var mergeConfig = require('./core/mergeConfig');
 var defaults = require('./defaults');
 
-/**
- * Create an instance of Axios
- *
- * @param {Object} defaultConfig The default config for the instance
- * @return {Axios} A new instance of Axios
- */
+
+// createInstance是创建axios对象的函数，这个对象有Axios原型上的属性，也有Axios实例的属性，它本身指向Axios原型上的request方法
 function createInstance(defaultConfig) {
   var context = new Axios(defaultConfig);
+  // 创建一个 Axios 类的实例 context
+  
   var instance = bind(Axios.prototype.request, context);
+  // instance 就是改变了this（指向context）的 Axios.prototype.request 这个方法
+  // 也就是 instance 是个函数对象
 
-  // Copy axios.prototype to instance
+  // 把 Axios 原型上的方法（request、getUri）拷贝到 instance 上
   utils.extend(instance, Axios.prototype, context);
 
-  // Copy context to instance
+  // 把Axios的实例 context 上的属性（defaults、interceptors）拷贝到 instance
   utils.extend(instance, context);
 
-  return instance;
+  return instance; // 返回出 instance
 }
 
-// Create the default instance to be exported
+// 创建一个用来导出的axios对象
 var axios = createInstance(defaults);
 
-// Expose Axios class to allow class inheritance
+// 把Axios类挂载到axios对象上
 axios.Axios = Axios;
 
-// Factory for creating new instances
+// 往axios对象上挂载一个创建一个新的axios对象的方法
 axios.create = function create(instanceConfig) {
   return createInstance(mergeConfig(axios.defaults, instanceConfig));
 };
 
-// Expose Cancel & CancelToken
+// 挂载 Cancel & CancelToken 方法
 axios.Cancel = require('./cancel/Cancel');
 axios.CancelToken = require('./cancel/CancelToken');
 axios.isCancel = require('./cancel/isCancel');
 
-// Expose all/spread
+// 挂载 all/spread 方法
 axios.all = function all(promises) {
   return Promise.all(promises);
 };
 axios.spread = require('./helpers/spread');
 
+// 导出axios对象
 module.exports = axios;
 
 // Allow use of default import syntax in TypeScript

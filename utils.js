@@ -292,11 +292,7 @@ function deepMerge(/* obj1, obj2, obj3, ... */) {
 
 /**
  * Extends object a by mutably adding to it the properties of object b.
- *
- * @param {Object} a The object to be extended
- * @param {Object} b The object to copy properties from
- * @param {Object} thisArg The object to bind function to
- * @return {Object} The resulting value of object a
+ * 把对象b的属性扩展到对象a上，如果是方法，把方法中的this也改成thisArg
  */
 function extend(a, b, thisArg) {
   forEach(b, function assignValue(val, key) {
