@@ -13,7 +13,7 @@ var mergeConfig = require('./mergeConfig');
  */
 // Axios类
 function Axios(instanceConfig) {
-  this.defaults = instanceConfig; // 把传入的config挂到实例上
+  this.defaults = instanceConfig; // 把new Axios时传入的config挂到实例上
   this.interceptors = {
     request: new InterceptorManager(),
     response: new InterceptorManager()
@@ -21,11 +21,9 @@ function Axios(instanceConfig) {
 }
 
 /**
- * Dispatch a request
- *
- * @param {Object} config The config specific for this request (merged with this.defaults)
+ * 发送请求的方法，挂到Axios的原型上
+ * @param {Object} config 专门为请求的配置项 (merged with this.defaults)
  */
-// 发送请求的方法，挂到Axios的原型上
 Axios.prototype.request = function request(config) {
   // 如果接收的第一个参数是字符串，那么配置对象config就取第二个参数（没有传第二个参数就取{}）,再把传入的字符串以属性url挂到config上
   // 如果不是字符串就取它本身，什么都没传就取{}
@@ -35,9 +33,9 @@ Axios.prototype.request = function request(config) {
   } else {
     config = config || {};
   }
-
+  // 合并配置项。把new Axios时传入的config和request传入的config合并
   config = mergeConfig(this.defaults, config);
-  // 把 new Axios(config)时传入的config和当前的config合并
+
   config.method = config.method ? config.method.toLowerCase() : 'get';
   // 把config里的method的值小写，没传默认是get
 

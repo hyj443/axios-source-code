@@ -292,11 +292,11 @@ function deepMerge(/* obj1, obj2, obj3, ... */) {
 
 /**
  * Extends object a by mutably adding to it the properties of object b.
- * 把对象b的属性扩展到对象a上，如果是方法，把方法中的this也改成thisArg
+ * 把对象b的属性扩展到对象a上，同时考虑了属性是方法时，this的指向
  */
 function extend(a, b, thisArg) {
-  forEach(b, function assignValue(val, key) {
-    if (thisArg && typeof val === 'function') {
+  forEach(b, function assignValue(val, key) { // 遍历b的属性。执行回调
+    if (thisArg && typeof val === 'function') { // 如果指定了this，且遍历到的属性是方法，在a写入改绑this后的方法
       a[key] = bind(val, thisArg);
     } else {
       a[key] = val;
