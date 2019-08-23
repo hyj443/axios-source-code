@@ -257,7 +257,7 @@ function merge(/* obj1, obj2, obj3, ... */) {
       result[key] = val;
     }
   }
-
+  // 遍历传入的每个对象，遍历对象中的每个键值对，assignValue回调处理每个键值对，把键值对拷贝到result中，如果result中的键值和当前遍历的键值都是对象，递归合并，只要有一个不是对象，就让后者覆盖上来
   for (var i = 0, l = arguments.length; i < l; i++) {
     forEach(arguments[i], assignValue);
   }

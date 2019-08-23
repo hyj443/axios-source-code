@@ -33,7 +33,7 @@ Axios.prototype.request = function request(config) {
   } else {
     config = config || {};
   }
-  // 合并配置项。把new Axios时传入的config和request传入的config合并
+  // 合并配置项。把new Axios时传入的config（defaults.js导出的）和request传入的config合并
   config = mergeConfig(this.defaults, config);
 
   config.method = config.method ? config.method.toLowerCase() : 'get';
@@ -66,7 +66,7 @@ Axios.prototype.getUri = function getUri(config) {
 // 给Axios的原型上挂载 delete get 等方法，传入URL和config，返回出request方法的执行结果
 utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
   Axios.prototype[method] = function(url, config) {
-    // 把config 和 {method: method, url: url} 合并一下
+    // 把传入的config 和 {method: method, url: url} 合并一下，后者的权重高
     return this.request(utils.merge(config || {}, { 
       method: method,
       url: url

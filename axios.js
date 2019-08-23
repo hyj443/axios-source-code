@@ -16,7 +16,7 @@ function createInstance(defaultConfig) {
   var instance = bind(Axios.prototype.request, context);
   // instance 这个函数对象就是 改变了this（指向context）的 Axios.prototype.request 这个方法
 
-  // 把 Axios 原型上的方法（request、getUri）拷贝到 instance 上
+  // 把 Axios 原型上的方法（request,getUri,get,post,put...）拷贝到 instance 上
   utils.extend(instance, Axios.prototype, context);
 
   // 把Axios的实例 context 上的属性（defaults、interceptors）拷贝到 instance
