@@ -7,12 +7,11 @@ var mergeConfig = require('./core/mergeConfig');
 var defaults = require('./defaults');
 
 
-// createInstance 返回一个函数对象
-// 这个对象本身指向Axios.prototype.request，并且有Axios.prototype上的属性，也有Axios实例的属性
+// 函数执行返回instance，instance指向Axios.prototype.request这个方法，并且自身整合了Axios.prototype上的属性和Axios实例的属性
 function createInstance(defaultConfig) {
-  var context = new Axios(defaultConfig);
-  // 创建一个 Axios 类的实例 context
-  
+
+  var context = new Axios(defaultConfig); // 创建Axios的实例 context
+
   var instance = bind(Axios.prototype.request, context);
   // instance 这个函数对象就是 改变了this（指向context）的 Axios.prototype.request 这个方法
 
