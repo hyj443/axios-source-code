@@ -2,37 +2,36 @@
 ## 1.Axios是什么
 Axios 是一个基于promise的HTTP库
 主要特性有：
-- 从浏览器中创建 XMLHttpRequest
-- 从 node.js 创建 HTTP 请求
+- 在浏览器中创建`XMLHttpRequest`对象获取数据
+- 在 node.js 创建 HTTP 请求
 - 支持 Promise
 - 拦截请求和响应
 - 转换请求数据和响应数据
 - 取消请求
 - 自动转换JSON数据
 - 客户端支持防御 XSRF
-## 2.Axios的多种请求写法
+## 2. 多种请求写法
+Axios有多种请求的写法，但其实核心是执行的是同一个方法，后面将阐述
 |API|说明|
 |-|- |
 |axios(config)|传入相关配置来创建请求|
 |axios(url[, config])|只传url的话默认发送 GET 请求|
 |axios.request(config)|config中url是必须的|
-|axios[method](url[, config])<br>axios[method](url[, data[, config]])|为了方便，给所有支持的请求方法提供了别名<br>这种情况下，不用再config中再指定url、method、data|
+|axios[method](url[, config])<br>axios[method](url[, data[, config]])|为了方便，给所有支持的请求方法提供了别名<br>这种情况下，不用再config中指定url、method、data|
 ## 3.实现多种写法的原因
 ### 3.1.从入口文件入手
   我们先看入口文件 axios.js，看看 `axios` 到底是什么
   ```js
-  // 函数执行返回 instance， instance 其实指向 Axios.prototype.request 函数
-  // instanceg 本身挂载了 Axios.prototype 上的属性和 Axios 实例的属性
 
 function createInstance(defaultConfig) {
 
     var context = new Axios(defaultConfig); // 创建Axios的实例context
 
     var instance = bind(Axios.prototype.request, context);
-    // instance 相当于Axios.prototype.request.bind(context)，待会我们看看bind的实现
+    // 相当于Axios.prototype.request.bind(context)，待会我们看看bind的实现
     
     utils.extend(instance, Axios.prototype, context);
-    // 将 Axios 原型上的方法（request,getUri,get,post,put...）拷贝到 instance 上
+    // 将 Axios 原型上的方法（request,getUri,get,post,put...）拷贝到 instance 
     
     utils.extend(instance, context);
     // 将 Axios 的实例 context 上的属性（defaults、interceptors）拷贝到 instance
@@ -40,7 +39,7 @@ function createInstance(defaultConfig) {
     return instance; // 返回出 instance
 }
 
-var axios = createInstance(defaults); // 创建一个将要被导出的axios对象
+var axios = createInstance(defaults); // 将要被导出的axios对象
 
 
   ```
@@ -48,12 +47,11 @@ var axios = createInstance(defaults); // 创建一个将要被导出的axios对�
   所以axios就是bind函数的执行返回值，它身上绑上了Axios原型上的属性方法，所以可以axios.request这么调用
 
 
-
 ### 3.2 bind 函数做了什么
   我们来看看`bind`函数做了什么，其实是将传入的`fn`改变它执行时的`this`指向
   ```js
   module.exports = function bind(fn, thisArg) {
-  // bind执行返回一个包裹函数wrap，wrap 执行返回 fn 的执行结果，执行时this改成thisArg
+  // bind执行返回一个包裹函数wrap，如果 wrap 执行，返回 fn 的执行结果，执行时this指向thisArg
     return function wrap() {
       var args = new Array(arguments.length);
       for (var i = 0; i < args.length; i++) {
@@ -67,20 +65,21 @@ var axios = createInstance(defaults); // 创建一个将要被导出的axios对�
   ```js
   var instance = bind(Axios.prototype.request, context);
   ```
-  `instance`指向一个包裹函数wrap，它的执行结果返回的是`request`执行结果，`request`执行时的this修改成指向Axios的实例。
+  `instance`指向一个包裹函数wrap，wrap的执行结果返回的是`request`执行结果，`request`执行时的this修改成指向Axios的实例。
 ```js
-var axios = createInstance(defaults); 
+var axios = createInstance(defaults);
 ```
-  所以axios可以理解为指向了Axios原型上的request方法，它本身又挂载了Axios原型上所有属性和Axios实例的所有属性和方法，而且这些方法执行时的this都指向同一个Axios实例对象。
+  所以`axios`指向bind函数，可以理解为指向了改变了执行上下文的`Axios.prototype.request`，它本身又挂载了Axios原型上所有属性和Axios实例的所有属性和方法，而且这些方法执行时的this都指向同一个Axios实例对象。
+
+
 
 ### 3.3 探究Axios构造函数
 
   Axios是axios库的核心，Axios构造器的核心方法是原型上的request方法，各种axios的调用方式最后都是通过request方法发起请求的，我们通过源码一探究竟吧！
-  下面是core\Axios.js的源码：
+  下面是/core/Axios.js的源码：
   ```js
-  // Axios类
 function Axios(instanceConfig) {
-    this.defaults = instanceConfig; 
+    this.defaults = instanceConfig;
     this.interceptors = {
       request: new InterceptorManager(),
       response: new InterceptorManager()
@@ -91,17 +90,14 @@ function Axios(instanceConfig) {
 Axios.prototype.request = function request(config) {
     // 代码省略，稍后分析
 };
-// Axios原型方法，返回出构建好的URL
-Axios.prototype.getUri = function getUri(config) {
-  config = mergeConfig(this.defaults, config);
-  return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
-};
+
+// ....
 
 // 给Axios的原型上挂载 delete get 等方法，传入URL和config，返回出request方法的执行结果
   utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
     Axios.prototype[method] = function(url, config) {
       // 传入的config 和 {method: method, url: url} 合并，后者的权重高
-      return this.request(utils.merge(config || {}, { 
+      return this.request(utils.merge(config || {}, {
         method: method,
         url: url
       }));
@@ -119,11 +115,11 @@ Axios.prototype.getUri = function getUri(config) {
 });
 
   ```
-  所以我们知道了axios.get()、axios.post等别名调用方式是这么来的，都往Axios.prototype上挂，调用这些方法都转成调用Axios.prototype.request方法
+  所以这些get post put....往Axios.prototype上挂后，再拷贝到axios作为自有方法，就能直接axios.get....调用这些方法都转成调用Axios.prototype.request方法
 
 ## 4.配置对象config如何起作用
   在探究Axios.prototype.request之前，我们先看看用户传入的config配置项，在源码里面是怎么起作用的。
-  通过axios文档，我们可知我们可以定义这些配置项：
+  axios文档告诉我们可以定义这些配置项：
 
 |配置项|说明|
 |---|---|
@@ -145,7 +141,7 @@ Axios.prototype.getUri = function getUri(config) {
  config这个对象是axios内部的沟通桥梁，也是用户跟axios内部的沟通桥梁
 
 我们通过源码看一下config是怎么一步步传到需要的位置：
-### 4.1 axios.defaults设置
+### 4.1 axios的默认设置对象
 /axios.js 中
 ```js
 var defaults = require('./defaults');
@@ -161,7 +157,7 @@ function createInstance(defaultConfig) {
   return instance;
 }
 ```
-createInstance的形参defaults接收'./defaults'导出的defaults，再传给Axios构造函数，然后我们进到Axios源码看看
+createInstance的形参defaults接收'./defaults'文件导出的defaults，再传给Axios构造函数，然后我们进到Axios源码看看
 
 ```js
 function Axios(instanceConfig) {
@@ -177,15 +173,15 @@ Axios.prototype.request = function request(config) {
   // ....
 
   config = mergeConfig(this.defaults, config); 
-  // 合并配置对象。把defaults.js导出的默认配置对象和request传入的config合并
+  // 合并配置对象。把默认配置对象和request传入的config合并
 
   // ....
 };
 ```
 
-所以axios(config) axios执行就相当于Axios.prototype.request执行，传入的config会和默认的defaults对象合并。
+所以axios(config)，相当于Axios.prototype.request执行，传入的config会和默认的defaults对象合并。
 
-我们又知道Axios实例的属性被添加到instance 上，即axios上，成为自有属性
+我们又知道Axios实例的属性被添加到instance 上，即axios上，成为自有属性，可axios.defaults
 ```js
 function createInstance(defaultConfig) {
   // ....
@@ -195,7 +191,7 @@ function createInstance(defaultConfig) {
   // ...
 }
 ```
-所以axios可以直接取到Axios实例的defaults属性
+
 所以用户可以通过：
 ```js
 axios.defaults[configName] = value;
@@ -240,7 +236,7 @@ Axios.prototype.request = function request(config) {
   // 省略....
   config = mergeConfig(this.defaults, config);
 
-  var chain = [dispatchRequest, undefined]; // chain数组是用来盛放拦截器方法和dispatchRequest方法的
+  var chain = [dispatchRequest, undefined]; // chain数组：存放拦截器方法和dispatchRequest方法
   // 将 config 对象作为参数传给Promise.resolve
   var promise = Promise.resolve(config);
 
@@ -257,7 +253,8 @@ Axios.prototype.request = function request(config) {
     // promise取then的返回值
     promise = promise.then(chain.shift(), chain.shift());
   }
-  // 所以promise讲chain数组里的回调按序取出并逐个执行，最后将处理后的新的promise在request方法中返回出去
+  // 所以promise将chain数组里的回调函数依次取出并逐个执行，config会被传入并传递，其中就包括dispatchRequest
+  // 最后将处理后的新的promise在request方法中返回出去
   return promise;
 };
 ```
@@ -298,7 +295,7 @@ module.exports = function dispatchRequest(config) {
       }
     );
 
-    // adapter 是HTTP请求适配器，会优先使用自定义的适配器，不然就用默认的XHR或HTTP适配器
+    // adapter 是HTTP请求适配器，会优先使用自定义的适配器，不然就用默认的
     var adapter = config.adapter || defaults.adapter;
 
     return adapter(config).then(/**/);
@@ -307,7 +304,7 @@ module.exports = function dispatchRequest(config) {
 所以dispatchRequest做了三件事：
 1. 处理config，在传给HTTP请求适配器之前对它进行最后处理
 2. 请求适配器adapter根据config配置，执行，发起请求
-3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回
+3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回（代码暂未展示）
 
 所以我们知道Axios.prototype.request方法会调用dispatchRequest方法，dispatchRequest方法会调用defaults.adapter方法，接下来我们看看adapter
 
