@@ -15,11 +15,12 @@ function setContentTypeIfUnset(headers, value) {
 
 function getDefaultAdapter() {
   var adapter;
-  // Only Node.JS has a process variable that is of [[Class]] process
+  // 只有Node.Js有process变量，并有process类
   if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
     // For node use HTTP adapter
     adapter = require('./adapters/http');
   } else if (typeof XMLHttpRequest !== 'undefined') {
+    // XMLHttpRequest是浏览器提供的API对象
     // For browsers use XHR adapter
     adapter = require('./adapters/xhr');
   }

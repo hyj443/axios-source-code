@@ -33,7 +33,7 @@ Axios.prototype.request = function request(config) {
   } else {
     config = config || {};
   }
-  // 合并配置项。把new Axios时传入的config（defaults.js导出的）和request传入的config合并
+  // 合并配置项。把默认配置对象config（defaults.js导出的）和用户传入的config合并
   config = mergeConfig(this.defaults, config);
 
   config.method = config.method ? config.method.toLowerCase() : 'get';
