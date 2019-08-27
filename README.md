@@ -124,22 +124,23 @@ Axios.prototype.getUri = function getUri(config) {
   ### 4 配置对象config如何起作用
   在探究Axios.prototype.request之前，我们先看看用户传入的config配置项，在源码里面是怎么起作用的。
   通过axios文档，我们可知我们可以定义这些配置项：
-  |配置项|说明|
-  |-|-|
-  |`url` |请求的URL|
-  |`method`|请求的方法|
- | `baseURL`|加在`url`前面，除非`url`是绝对URL|
-  |`transformRequest`|在向服务器发请求前，修改请求数据|
- | `transformResponse`|在响应数据传递给then/catch前，修改响应数据|
- | `headers`|自定义请求头|
- | `params`|URL参数，必须是plain对象或URLSearchParams对象|
-  |`paramsSerializer`|对params序列化的函数|
- | `data`|作为请求主体的数据|
- | `timeout`|指定请求超时的毫秒数，超过就请求中断|
- | `withCredentials`|跨域请求时是否需要使用凭证|
- | `adapter`|允许你自己写处理config的函数|
- | `responseType`|服务器响应的数据类型|
- | `auth` 等......|......|
+
+|配置项|说明|
+|---|---|
+|`url` |请求的URL|
+|`method`|请求的方法|
+| `baseURL`|加在`url`前面，除非`url`是绝对URL|
+|`transformRequest`|在向服务器发请求前，修改请求数据|
+| `transformResponse`|在响应数据传递给then/catch前，修改响应数据|
+| `headers`|自定义请求头|
+| `params`|URL参数，必须是plain对象或URLSearchParams对象|
+|`paramsSerializer`|对params序列化的函数|
+| `data`|作为请求主体的数据|
+| `timeout`|指定请求超时的毫秒数，超过就请求中断|
+| `withCredentials`|跨域请求时是否需要使用凭证|
+| `adapter`|允许你自己写处理config的函数|
+| `responseType`|服务器响应的数据类型|
+| `auth` 等......|......|
 
  config这个对象是axios内部的沟通桥梁，也是用户跟axios内部的沟通桥梁
 
@@ -172,7 +173,7 @@ function Axios(instanceConfig) {
 
 ```js
 Axios.prototype.request = function request(config) {
-  
+
   // 省略....
 
   config = mergeConfig(this.defaults, config); 
