@@ -250,77 +250,69 @@ Axios.prototype.request = function request(config) {
 };
 ```
 
+chain数组，发送请求的dispatchRequest函数位于“中间位置”，前面是请求拦截器方法，后面是响应拦截器方法，这些方法都是成对加入数组的，将分别作为成功的回调，和失败的回调。不管有没有拦截器，dispatchRequest 都会默认执行
 
-`var promise = Promise.resolve(config)` promise是一个以config为实现的promise对象，它继续调用then，会走then的成功回调，回调里返回一个新的promise，resolve出修改后的config，这样下次then的时候就能拿到这个config再做修改.
+`var promise = Promise.resolve(config)`
 
-while循环实现了链式调用then，chain数组里的回调俩俩一组，分别作为成功和失败的回调处理函数，每次then都返回出新的promise对象，config实现了在then调用链中的传递
+promise是一个以config为实现的promise对象，它继续调用then，会走then的成功回调，回调里返回一个新的promise，resolve出修改后的config，这样下次then的时候就能拿到config再做修改，并再次resolve出来。
 
-chain队列中，发送请求的 dispatchRequest 函数位于“中间位置”，它前面是请求拦截器方法，后面是响应拦截器方法，这些方法都是成对加入的。
+while循环，遍历了一遍chain数组，实现了链式调用then，chain数组里的回调成对地从数组中出列，每次then都返回出新的promise对象，config实现了在then调用链中的传递
 
-chain数组以2个一组存放回调函数，一个是成功的回调，一个是失败的回调，不断调用promise.then方法，并把chain数组里的回调函数依次俩俩取出，作为then方法的参数，config在其中被传递
+大致像这样：
 
-request.interceptor用于发起请求前的准备工作，比如修改data和header，response.interceptor用于返回数据之后的处理工作，整个请求过程的发起过程是通过 dispatchRequest实现
+```js
+var promise = Promise.resolve(config)
+return promise.then(interceptor.request.fulfilled, interceptor.request.rejected)
+              .then(dispatchRequest, undefined)
+              .then(interceptor.response.fulfilled, interceptor.response.rejected)
+```
 
-## 6.dispatchrequest做了哪些事
-  照例我们先进入源码，看看
-### 6.1 dispatchrequest的实现
-  ```js
+request.interceptor用于发起请求前的准备工作，比如修改data和header，response.interceptor用于返回数据之后的处理工作，整个请求过程的发起过程是通过 dispatchRequest实现。
+
+## dispatchrequest做了什么
+
+```js
 module.exports = function dispatchRequest(config) {
 
-    throwIfCancellationRequested(config);
+  // 如果设置了中断请求，中断请求抛出原因
 
-    // 如果传了 baseURL 且config.url不是绝对路径，合并他们
-    if (config.baseURL && !isAbsoluteURL(config.url)) {
-      config.url = combineURLs(config.baseURL, config.url);
-    }
+  // 整合 config.url
 
-    config.headers = config.headers || {}; // 保证了headers存在
+  // 确保有config.headers
 
-    // 转换请求的 data
-    config.data = transformData(
-      config.data,
-      config.headers,
-      config.transformRequest
-    );
+  // 调用transformData转换请求的 data，赋给config.data
 
-    // 对 headers 进行合并处理
-    config.headers = utils.merge(
-      config.headers.common || {},
-      config.headers[config.method] || {},
-      config.headers || {}
-    );
-    // 删除header属性里的无用属性
-    utils.forEach(
-      ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
-      function cleanHeaderConfig(method) {
-        delete config.headers[method];
-      }
-    );
+  // 对 headers 进行合并处理
 
-    // adapter 是HTTP请求适配器，会优先使用自定义的适配器，不然就用默认的
-    var adapter = config.adapter || defaults.adapter;
+  // 删除header属性里的无用属性delete,get,head,post等
 
-    return adapter(config).then(/**/);
+  // adapter 是HTTP请求适配器，优先使用自定义的适配器，不然就用默认的
+  var adapter = config.adapter || defaults.adapter;
+
+  return adapter(config).then(/**/);
 };
   ```
-所以dispatchRequest做了三件事：
-1. 处理config，在传给HTTP请求适配器之前对它进行最后处理
-2. 请求适配器adapter根据config配置，执行，发起请求
-3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回（代码暂未展示）
 
-所以我们知道Axios.prototype.request方法会调用dispatchRequest方法，dispatchRequest方法会调用defaults.adapter方法，接下来我们看看adapter
+可见dispatchRequest做了三件事：
 
-### 6.2 adapter的实现
+1. 在传给请求适配器adapter之前对config做最后处理
+2. 执行 adapter ，发起请求
+3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回，代码稍后展示
+
+所以我们知道，调用Axios.prototype.request方法会调用chain数组里的dispatchRequest方法，dispatchRequest会调用adapter方法，接下来看 adapter 的实现
+
+### adapter的实现
+
+通过之前分析可知，如果不在config里自定义adaptor，就会取defaults.adaptor，我们看看默认adaptor是怎么实现的
 
 ```js
 function getDefaultAdapter() {
   var adapter;
-  // 只有Node.Js有process变量，并有process类
   if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
     // 对于 node 环境使用 HTTP adapter
     adapter = require('./adapters/http');
   } else if (typeof XMLHttpRequest !== 'undefined') {
-    // 对于 browsers 环境使用 XHR adapter
+    // 对于浏览器环境使用 XHR adapter
     adapter = require('./adapters/xhr');
   }
   return adapter;
@@ -331,44 +323,36 @@ var defaults = {
   // ....
 };
 ```
-我们可以看到defaults.adapter是getDefaultAdapter的执行结果，会根据运行环境判断是返回xhr文件导出的函数还是http文件导出的函数。
-我们来看看xhr.js文件中导出的函数吧
-### 6.3 xhrAdapter的实现
-xhrAdapter函数返回出一个promise，里面是一套发起XHR请求的流程
-```js
 
+可以看到获取 adapter 的时候做了环境的判断，不同环境引入不同的adapter函数
+
+我们来看看 xhr.js 文件中，浏览器发起请求的 xhrAdapter 函数
+
+### xhrAdapter的实现
+
+xhrAdapter函数返回出一个promise实例，是对 XMLHTTPRequest 一套流程的封装
+
+```js
 module.exports = function xhrAdapter(config) {
   return new Promise(function dispatchXhrRequest(resolve, reject) {
     // 把config中的data和headers拿到
     var requestData = config.data;
     var requestHeaders = config.headers;
-
     // ...
-
     var request = new XMLHttpRequest(); // 创建XMLHttpRequest实例
-
     // ...
-
     // 调用request的实例方法open，发起xhr请求，参数对应：方法，URL，是否异步请求
     request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
-
     // ...
-
     // 监听 readyState，设置对应的回调处理函数
     request.onreadystatechange = function handleLoad() {
       if (!request || request.readyState !== 4) {
         return;
       }
-
-      // The request errored out and we didn't get a response, this will be
-      // handled by onerror instead
-      // With one exception: request that using file: protocol, most browsers
-      // will return status as 0 even though it's a successful request
       if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
         return;
       }
-
-      // Prepare the response
+      // 准备 response 对象
       var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
       var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
       var response = {
@@ -379,47 +363,24 @@ module.exports = function xhrAdapter(config) {
         config: config,
         request: request
       };
-
       settle(resolve, reject, response);
-
-      // Clean up request
+      // 清除request对象
       request = null;
     };
 
-    // Handle browser request cancellation (as opposed to a manual cancellation)
-    request.onabort = function handleAbort() {
-      if (!request) {
-        return;
-      }
+    // 处理浏览器请求取消，和手动取消相反
+    request.onabort = function handleAbort() {...};
 
-      reject(createError('Request aborted', config, 'ECONNABORTED', request));
+    // 处理低层次网络错误
+    request.onerror = function handleError() {...};
 
-      // Clean up request
-      request = null;
-    };
+    // 处理超时
+    request.ontimeout = function handleTimeout() {...};
 
-    // Handle low level network errors
-    request.onerror = function handleError() {
-      // Real errors are hidden from us by the browser
-      // onerror should only fire if it's a network error
-      reject(createError('Network Error', config, null, request));
-
-      // Clean up request
-      request = null;
-    };
-
-    // Handle timeout
-    request.ontimeout = function handleTimeout() {
-      reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED',
-        request));
-
-      // Clean up request
-      request = null;
-    };
-
-    // Send the request
+    // 发送请求
     request.send(requestData);
   });
 };
-
 ```
+
+## 整个流程的回顾
