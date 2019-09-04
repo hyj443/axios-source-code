@@ -17,10 +17,10 @@ Axios 是一个基于promise的HTTP库
 ## 多种请求写法
 
 Axios有多种请求的写法，但其实核心是执行的是同一个方法，后面将阐述
-|API|说明|
-|-|- |
+| API         |说明                |
+|-------------|------------------- |
 |axios(config)|传入相关配置来创建请求|
-|axios(url[, config])|只传url的话默认发送 GET 请求|
+|axios(url[, config])|可以只传url，但会默认发送 GET 请求|
 |axios.request(config)|config中url是必须的|
 |axios[method](url[, config])<br>axios[method](url[, data[, config]])|为了方便，给所有支持的请求方法提供了别名<br>这种情况下，不用再config中指定url、method、data|
 
@@ -28,13 +28,19 @@ Axios有多种请求的写法，但其实核心是执行的是同一个方法，
 
 ### 从入口文件入手
 
-  我们先看入口文件 axios.js，看看 `axios` 到底是什么
+我们先看入口文件 axios.js，看看 `axios` 到底是什么
 
 ```js
+var utils = require('./utils');
+var bind = require('./helpers/bind');
+var Axios = require('./core/Axios');
+var mergeConfig = require('./core/mergeConfig');
+var defaults = require('./defaults');
+
 function createInstance(defaultConfig) {
   var context = new Axios(defaultConfig); // 创建Axios的实例context
   var instance = bind(Axios.prototype.request, context);
-  // 相当于Axios.prototype.request.bind(context)，待会我们看看bind的实现
+  // 相当于Axios.prototype.request.bind(context)
   utils.extend(instance, Axios.prototype, context);
   // 将 Axios 原型上的方法（request,getUri,get,post,put...）拷贝到 instance
   utils.extend(instance, context);
@@ -44,15 +50,10 @@ function createInstance(defaultConfig) {
 var axios = createInstance(defaults); // 将要被导出的axios对象
 ```
 
-所以axios就是bind函数的返回值，Axios原型上的属性方法和Axios实例的属性都拷贝了给axios对象，所以可以axios.request这么调用
-
-### bind 函数做了什么
-
-我们来看看`bind`函数做了什么
+先看一下作为工具函数的 bind 和 extend 具体是怎么实现。
 
 ```js
 module.exports = function bind(fn, thisArg) {
-// bind执行返回一个包裹函数wrap，如果 wrap 执行，返回 fn 的执行结果，执行时this指向thisArg
   return function wrap() {
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; i++) {
@@ -63,18 +64,34 @@ module.exports = function bind(fn, thisArg) {
 };
 ```
 
-bind 方法执行返回一个包裹函数wrap，`var instance = bind(Axios.prototype.request, context)`，所以 instance 指向 wrap 方法，instance 执行 即 wrap 执行，返回 `Axios.prototype.request.apply` 的执行结果，执行时的this指向context。
+bind 方法执行返回一个包裹函数wrap，wrap 执行时返回 fn 函数改变了this的执行结果，fn执行时传入wrap的参数数组。
 
-  `instance`指向一个包裹函数wrap，wrap的执行结果返回的是`request`执行结果，`request`执行时的this修改成指向Axios的实例。
+`var instance = bind(Axios.prototype.request, context)`
+
+所以 `instance` 指向 wrap 方法，instance 执行 即 wrap 执行，返回 `Axios.prototype.request.apply` 的执行结果，执行时this指向context，即Axios的实例。
+
+```js
+function extend(a, b, thisArg) {
+  forEach(b, function assignValue(val, key) { // 遍历b的属性。执行回调 assignValue
+    if (thisArg && typeof val === 'function') { // 遍历到的属性值是函数，要复制改绑this的方法
+      a[key] = bind(val, thisArg);
+    } else {
+      a[key] = val;
+    }
+  });
+  return a;
+}
+```
+
+可见，extend就是把对象b的属性扩展到对象a上，同时考虑了属性是方法时，this的指向问题。
 
 `var axios = createInstance(defaults);`
 
-createInstance 执行返回instance，所以`axios`指向 wrap 函数，可以理解为指向了改变了执行上下文的`Axios.prototype.request`函数，`axios` 本身又挂载了Axios原型上所有属性和Axios实例的所有属性，而且这些方法执行时的this都指向同一个Axios实例。
+所以 axios 是 createInstance 返回出的 instance。指向 wrap 函数。由于wrap函数的实现，可以理解为 axios 指向了改变了执行上下文的 `Axios.prototype.request` 函数，`axios` 本身又挂载了Axios原型上所有属性和Axios实例的所有属性，而且这些方法执行时的this都指向同一个Axios实例。
 
-### 探究Axios构造函数
+## 探究Axios构造函数
 
-Axios构造函数是axios库的核心，Axios构造器的核心方法是原型上的request方法，各种axios的调用方式最后都是走request方法，我们通过源码一探究竟吧！
-下面是/core/Axios.js的源码：
+既然我们知道 axios 指向 Axios.prototype.request，这是Axios构造器的核心方法，我们就先看看Axios构造函数本身。
 
 ```js
 function Axios(instanceConfig) {
@@ -84,7 +101,6 @@ function Axios(instanceConfig) {
     response: new InterceptorManager()
   };
 }
-
 // 发送请求的方法
 Axios.prototype.request = function request(config) {
   // 代码省略，稍后分析
@@ -92,32 +108,34 @@ Axios.prototype.request = function request(config) {
 
 // ....
 
-// 给Axios的原型上挂载 delete get 等方法，传入URL和config，实际是转而调用request
-  utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
-    Axios.prototype[method] = function(url, config) {
-      return this.request(utils.merge(config || {}, { // 合并config，后者的权重高
-        method: method,
-        url: url
-      }));
-    };
+// 往Axios的原型上挂载 delete,get 等方法，方法返回request的执行结果
+utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
+  Axios.prototype[method] = function(url, config) {
+    return this.request(utils.merge(config || {}, { // 合并config，后者的权重高
+      method: method,
+      url: url
+    }));
+  };
 });
-// 给Axios的原型上挂载 post 等方法，这些都可以传请求主体的，也是转而调用 request
-  utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
-    Axios.prototype[method] = function(url, data, config) {
-      return this.request(utils.merge(config || {}, {
-        method: method,
-        url: url,
-        data: data
-      }));
-    };
+// 往Axios的原型上挂载 post 等方法，都是可以传请求主体的，也是返回request的执行结果
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  Axios.prototype[method] = function(url, data, config) {
+    return this.request(utils.merge(config || {}, {
+      method: method,
+      url: url,
+      data: data
+    }));
+  };
 });
   ```
 
-所以这些get post put....往Axios原型上挂载后，再拷贝到axios作为自有属性，就能直接axios.get调用....调用这些方法都实际调用了Axios.prototype.request方法
+所以，这些get post put等方法，往Axios原型上挂载后，连同原型方法requset拷贝到axios作为自有属性，就能直接axios.get调用
 
-## 配置对象config经历了什么
+所以多种API的调用写法，实际最后都调用了Axios.prototype.request方法。
 
-在探究Axios.prototype.request之前，我们先看看用户传入的config配置对象，它在源码里面是经历了什么。
+## 配置对象config怎么起作用
+
+在探究Axios.prototype.request之前，我们先看看用户传入的config，它在源码里面经历了什么，怎么一步步传到需要的位置。
 
 axios文档告诉我们可以定义这些配置项：
 
@@ -140,8 +158,6 @@ axios文档告诉我们可以定义这些配置项：
 
  config这个对象是axios内部的沟通桥梁，也是用户跟axios内部的沟通桥梁
 
-我们通过源码看一下config是怎么一步步传到需要的位置：
-
 ### axios的默认config
 
 /axios.js 中
@@ -152,37 +168,36 @@ var defaults = require('./defaults');
 var axios = createInstance(defaults);
 
 function createInstance(defaultConfig) {
-
   var context = new Axios(defaultConfig);
-  
   // ....省略
-
   return instance;
 }
 ```
 
-createInstance 接收'./defaults'文件导出的defaults，再传给Axios构造函数，我们看看Axios的实现
+createInstance 接收 ./defaults 文件导出的defaults对象，再传给Axios构造函数，我们看看Axios
 
 ```js
 function Axios(instanceConfig) {
-  this.defaults = instanceConfig; 
+  this.defaults = instanceConfig;
   // 省略...
 }
 ```
 
-默认的配置defaults绑定到Axios的实例上，作为实例的属性。我们看看Axios原型方法request，它接收用户传来的config，是怎么处理的。
+默认配置对象 defaults 作为属性挂载到 Axios 的实例上。
+
+默认的config我们知道挂到哪了，用户自己传的config，是怎么处理的，要看Axios.prototype.request。
 
 ```js
 Axios.prototype.request = function request(config) {
   // ....
-  config = mergeConfig(this.defaults, config) // 合并config。默认的和request传入的合并
+  config = mergeConfig(this.defaults, config) // 默认的config和request传入的config合并
   // ....
 };
 ```
 
-所以axios(config)，相当于Axios.prototype.request执行，传入的config会和默认的defaults对象合并。
+所以，axios(config)，相当于Axios.prototype.request执行，传入的config会和默认的defaults合并。
 
-我们又知道Axios实例的属性被添加到instance 上，即axios上，成为自有属性。
+又可知，Axios实例的属性被添加到 instance 上，即axios上，成为自有属性。
 
 所以用户可以通过 `axios.defaults` 直接修改默认配置中的配置项
 
@@ -190,32 +205,32 @@ Axios.prototype.request = function request(config) {
 axios.defaults[configName] = value;
 ```
 
-除此之外，用户还可以通过axios暴露的create方法传配置对象
+除此之外，axios对象还暴露了一个create方法，供用户传通用的配置对象
 
 axios.js文件中：
 
 ```js
 axios.create = function create(instanceConfig) {
-  // 把传入的config和默认配置对象合并，createInstance 接收的是整合好的config
+  // 把传入的config和默认配置对象合并，createInstance 接收整合好的config
   return createInstance(mergeConfig(axios.defaults, instanceConfig));
 };
 ```
 
-所以用户可以这样创建一个Axios实例，传入配置项，设置的是通用配置
+所以用户可以像下面这样，自己创建一个Axios实例，传入自定义的通用配置。
 
 ```js
 let newAxiosInstance = axios.create({
-  [configName]: value,
+  configName: value,
 })
 ```
 
-总结一下，一共有三种传配置的方式
+总结一下，用户一共有三种传配置的方式
 
 - axios(config)
 - axios.defaults[name] = value
 - axios.create(config)
 
-这里牵扯很多覆盖合并，这就涉及到优先级。
+因为config最后要整合成一个，所以涉及到覆盖合并，存在优先级的问题。
 
 优先级从高到低：
 
@@ -223,7 +238,7 @@ let newAxiosInstance = axios.create({
   2. Axios实例属性defaults
   3. 默认配置对象defaults（/lib/defaults.js)
 
-## 考察 request 方法
+## 考察 Axios.prototype.request
 
 ```js
 Axios.prototype.request = function request(config) {
