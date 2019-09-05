@@ -73,7 +73,7 @@ bind 方法执行返回一个包裹函数wrap，wrap 执行时返回 fn 函数�
 ```js
 function extend(a, b, thisArg) {
   forEach(b, function assignValue(val, key) { // 遍历b的属性。执行回调 assignValue
-    if (thisArg && typeof val === 'function') { // 遍历到的属性值是函数，要复制改绑this的方法
+    if (thisArg && typeof val === 'function') { // 遍历到的属性值是函数，让this指向thisArg再复制给a
       a[key] = bind(val, thisArg);
     } else {
       a[key] = val;
@@ -87,7 +87,7 @@ function extend(a, b, thisArg) {
 
 `var axios = createInstance(defaults);`
 
-所以 axios 是 createInstance 返回出的 instance。指向 wrap 函数。由于wrap函数的实现，可以理解为 axios 指向了改变了执行上下文的 `Axios.prototype.request` 函数，`axios` 本身又挂载了Axios原型上所有属性和Axios实例的所有属性，而且这些方法执行时的this都指向同一个Axios实例。
+暂且就当 defaults 是一个默认对象。axios 是 createInstance 返回出的 instance。指向 wrap 函数。由于wrap函数的实现，可以理解为 axios 指向了改变了执行上下文的 `Axios.prototype.request` 函数，`axios` 本身又挂载了Axios原型上所有属性和Axios实例的所有属性，而且这些方法执行时的this都指向同一个Axios实例。
 
 ## 探究Axios构造函数
 
@@ -265,21 +265,21 @@ Axios.prototype.request = function request(config) {
 };
 ```
 
-chain数组，发送请求的dispatchRequest函数位于“中间位置”，前面是请求拦截器方法，后面是响应拦截器方法，这些方法都是成对加入数组的，将分别作为成功的回调，和失败的回调。不管有没有拦截器，dispatchRequest 都会默认执行
+chain数组，发送请求的dispatchRequest函数位于“中间位置”，前面是请求拦截器方法，后面是响应拦截器方法，这些方法都是成对加入数组的，将分别作为成功的回调，和失败的回调。不管有没有拦截器，dispatchRequest 都会默认执行。
 
 `var promise = Promise.resolve(config)`
 
-promise是一个以config为实现的promise对象，它继续调用then，会走then的成功回调，回调里返回一个新的promise，resolve出修改后的config，这样下次then的时候就能拿到config再做修改，并再次resolve出来。
+Promise.resolve 返回一个以 config 为实现的 promise 对象，它继续调用then，会走then的成功回调，我们在回调里返回一个新的promise，resolve出修改后的config，这样下次then的时候就能拿到config再做修改，并再次resolve出来。
 
-while循环，遍历了一遍chain数组，实现了链式调用then，chain数组里的回调成对地从数组中出列，每次then都返回出新的promise对象，config实现了在then调用链中的传递
+while循环，chain数组里的回调成对地从数组中出列，遍历了一遍chain数组，实现了链式调用then，每次then都返回出新的promise对象，config实现了在then调用链中的传递
 
 大致像这样：
 
 ```js
 var promise = Promise.resolve(config)
-return promise.then(interceptor.request.fulfilled, interceptor.request.rejected)
-              .then(dispatchRequest, undefined)
-              .then(interceptor.response.fulfilled, interceptor.response.rejected)
+promise.then(interceptor.request.fulfilled, interceptor.request.rejected)
+       .then(dispatchRequest, undefined)
+       .then(interceptor.response.fulfilled, interceptor.response.rejected)
 ```
 
 request.interceptor用于发起请求前的准备工作，比如修改data和header，response.interceptor用于返回数据之后的处理工作，整个请求过程的发起过程是通过 dispatchRequest实现。
@@ -290,15 +290,10 @@ request.interceptor用于发起请求前的准备工作，比如修改data和hea
 module.exports = function dispatchRequest(config) {
 
   // 如果设置了中断请求，中断请求抛出原因
-
   // 整合 config.url
-
   // 确保有config.headers
-
   // 调用transformData转换请求的 data，赋给config.data
-
   // 对 headers 进行合并处理
-
   // 删除header属性里的无用属性delete,get,head,post等
 
   // adapter 是HTTP请求适配器，优先使用自定义的适配器，不然就用默认的
@@ -314,11 +309,11 @@ module.exports = function dispatchRequest(config) {
 2. 执行 adapter ，发起请求
 3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回，代码稍后展示
 
-所以我们知道，调用Axios.prototype.request方法会调用chain数组里的dispatchRequest方法，dispatchRequest会调用adapter方法，接下来看 adapter 的实现
+所以，Axios.prototype.request方法会调用chain数组里的dispatchRequest，dispatchRequest会调用adapter，接下来看 adapter 的实现
 
 ### adapter的实现
 
-通过之前分析可知，如果不在config里自定义adaptor，就会取defaults.adaptor，我们看看默认adaptor是怎么实现的
+已知，如果用户不在config里自定义adaptor，就会取defaults.adaptor，我们看看默认adaptor是怎么实现的
 
 ```js
 function getDefaultAdapter() {
@@ -339,7 +334,7 @@ var defaults = {
 };
 ```
 
-可以看到获取 adapter 的时候做了环境的判断，不同环境引入不同的adapter函数
+可以看到获取 adapter 的时候做了环境的判断，针对浏览器环境和node环境，引入不同的adapter函数
 
 我们来看看 xhr.js 文件中，浏览器发起请求的 xhrAdapter 函数
 
@@ -398,4 +393,160 @@ module.exports = function xhrAdapter(config) {
 };
 ```
 
-## 整个流程的回顾
+## 拦截器 InterceptorManager
+
+我们从Axios构造函数知道，Axios实例上挂载了interceptors对象
+
+```js
+var InterceptorManager = require('./InterceptorManager');
+
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.interceptors = {
+    request: new InterceptorManager(),
+    response: new InterceptorManager()
+  };
+}
+```
+
+interceptors 存放两个InterceptorManager的实例，一个是请求的拦截器，一个是响应的拦截器。看看InterceptorManager是什么样的。
+
+```js
+function InterceptorManager() { // 维护一个数组
+  this.handlers = [];
+}
+// 往数组里添加一个新的拦截器对象，对象里存放处理成功的回调、处理失败的回调
+InterceptorManager.prototype.use = function use(fulfilled, rejected) {
+  this.handlers.push({
+    fulfilled: fulfilled,
+    rejected: rejected
+  });
+  return this.handlers.length - 1; // 返回在数组中的索引作为拦截器的id
+};
+// 从数组里移除一个拦截器对象，让拦截器id对应的索引上的值为null
+InterceptorManager.prototype.eject = function eject(id) {
+  if (this.handlers[id]) {
+    this.handlers[id] = null;
+  }
+};
+// 遍历所有注册过的拦截器，这个方法会跳过那些被移除了的拦截器
+InterceptorManager.prototype.forEach = function forEach(fn) {
+  utils.forEach(this.handlers, function forEachHandler(h) {
+    if (h !== null) { // 如果遍历到的值不为null，才执行回调
+      fn(h);
+    }
+  });
+};
+module.exports = InterceptorManager;
+```
+
+由此可见 new InterceptorManager() 返回的是一个对象，对象上挂载了handlers这个属性，handlers存放拦截器对象
+
+拦截器对象存放成功回调和失败回调。用户在编写拦截器方法时，是这么调用的，拿添加请求拦截器来说：
+
+```js
+axios.interceptors.request.use(function (config) {
+  // 在发送请求之前做些什么
+  return config;
+}, function (error) {
+  // 对请求错误做些什么
+  return Promise.reject(error);
+});
+```
+
+interceptors 是 Axios 实例上的属性，通过extend复制给了instance，也就是axios，调用InterceptorManager.prototype.use方法，把成功和失败的回调函数 push 进数组 handler 中，成功的回调对 config 进行处理，失败的回调接收错误对象并通过返回新的promise，把错误对象传递下去。
+
+用户添加了拦截器方法，那拦截器方法是如何被推入chain数组的呢，我们回到Axios.prototype.request方法
+
+```js
+this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+    chain.unshift(interceptor.fulfilled, interceptor.rejected);
+  });
+
+this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+  chain.push(interceptor.fulfilled, interceptor.rejected);
+});
+```
+
+`this.interceptors.request` 也就是 new InterceptorManager()，一个实例，它可以调用 InterceptorManager 原型方法 forEach
+我们又知道这个 forEach 是会遍历 handlers 数组中所有注册过的拦截器，调用回调函数，在这里回调就是把拦截器对象的两个方法先后插入到数组chain中
+
+因此，chain 数组就形成了拦截器+dispathRequest的队列。依次被成对被 unshift 作为then的两个回调参数
+
+## 取消请求
+
+这部分我们用得比较少，先看看是怎么使用的：
+
+```js
+const CancelToken = axios.CancelToken;
+const source = CancelToken.source();
+
+axios.get('/user/12345', {
+  cancelToken: source.token
+}).catch(function(thrown) { // 失败，先看是不是Cancel对象
+  if (axios.isCancel(thrown)) {
+    console.log('请求取消', thrown.message);
+  } else {
+     // 处理错误
+  }
+});
+axios.post('/user/12345', {
+  name: 'new name'
+}, {
+  cancelToken: source.token
+})
+
+// 取消请求（message 参数是可选的）
+source.cancel('Operation canceled by the user.');
+```
+
+我们发现 要先引用 axios.CancelToken，然后调用 source 方法，返回出一个对象，里面有cancel 和 token，内部怎么实现的，目的是什么。
+
+先看入口
+
+```js
+axios.Cancel = require('./cancel/Cancel');
+axios.CancelToken = require('./cancel/CancelToken');
+axios.isCancel = require('./cancel/isCancel');
+```
+
+先看看 CancelToken 构造函数的 constructor。
+
+```js
+function CancelToken(executor) {
+  if (typeof executor !== 'function') {
+    throw new TypeError('executor must be a function.');
+  }
+  var resolvePromise;
+  this.promise = new Promise(function promiseExecutor(resolve) {
+    resolvePromise = resolve;
+  });
+  var token = this;
+  executor(function cancel(message) {
+    if (token.reason) {
+      // Cancellation has already been requested
+      return;
+    }
+
+    token.reason = new Cancel(message);
+    resolvePromise(token.reason);
+  });
+}
+```
+
+CancelToken 在初始化的时候要传入一个执行器方法，并且它会给它的实例挂载一个promise对象，最重要的是，它把 promise 的 resolve方法控制权放在了 executor 方法里面。
+
+这是什么意思，看一个小例子：
+
+```js
+let resolveHandle;
+new Promise((resolve, reject) => {
+  resolveHandle = resolve;
+}).then(res => {
+  console.log('resolve', res);
+});
+resolveHandle('ok');
+```
+
+resolveHandle 获取了一个promise的 resolve方法的控制权，要知道，promise对象管控的程序是无法从外部决定它是成功的还是失败的，但这样做就可以在外部控制这个promise的成功了
+

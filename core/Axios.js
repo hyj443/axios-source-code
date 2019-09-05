@@ -39,7 +39,7 @@ Axios.prototype.request = function request(config) {
   config.method = config.method ? config.method.toLowerCase() : 'get';
   // 把config里的method的值小写，没传默认是get
 
-  // Hook up interceptors middleware
+  // Hook up interceptors 中间件
   var chain = [dispatchRequest, undefined];
   var promise = Promise.resolve(config);
 
