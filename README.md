@@ -17,7 +17,7 @@ Axios 是一个基于promise的HTTP库
 ## 多种请求写法
 
 Axios有多种请求的写法，但其实核心是执行的是同一个方法，后面将阐述
-| API         |说明                |
+| API 写法        |说明                |
 |-------------|------------------- |
 |axios(config)|传入相关配置来创建请求|
 |axios(url[, config])|可以只传url，但会默认发送 GET 请求|
@@ -31,12 +31,6 @@ Axios有多种请求的写法，但其实核心是执行的是同一个方法，
 我们先看入口文件 axios.js，看看 `axios` 到底是什么
 
 ```js
-var utils = require('./utils');
-var bind = require('./helpers/bind');
-var Axios = require('./core/Axios');
-var mergeConfig = require('./core/mergeConfig');
-var defaults = require('./defaults');
-
 function createInstance(defaultConfig) {
   var context = new Axios(defaultConfig); // 创建Axios的实例context
   var instance = bind(Axios.prototype.request, context);
@@ -50,10 +44,12 @@ function createInstance(defaultConfig) {
 var axios = createInstance(defaults); // 将要被导出的axios对象
 ```
 
-先看一下作为工具函数的 bind 和 extend 具体是怎么实现。
+你可以看到 axios 是createInstance的执行返回的instance，而instance是bind函数的执行结果，传入的参数是：Axios.prototype.request 和 context，前者是Axios的原型方法request，后者是一个Axios的实例
+所以，bind函数是我们理解的关键。
+先看一下作为工具函数的 bind 和 extend 是怎么实现的。
 
 ```js
-module.exports = function bind(fn, thisArg) {
+function bind(fn, thisArg) {
   return function wrap() {
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; i++) {
@@ -64,7 +60,7 @@ module.exports = function bind(fn, thisArg) {
 };
 ```
 
-bind 方法执行返回一个包裹函数wrap，wrap 执行时返回 fn 函数改变了this的执行结果，fn执行时传入wrap的参数数组。
+你可以看到 bind 函数执行返回一个包裹函数 wrap ，wrap 执行返回 fn 函数的apply调用结果，传入了 wrap 函数接收的参数数组 args。
 
 `var instance = bind(Axios.prototype.request, context)`
 

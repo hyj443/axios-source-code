@@ -8,8 +8,7 @@ var defaults = require('./defaults');
 
 
 // 函数执行返回instance，instance指向Axios.prototype.request这个方法，instance整合了Axios.prototype上的属性和Axios实例的属性
-function createInstance(defaultConfig) {
-
+function createInstance (defaultConfig) {
   var context = new Axios(defaultConfig);
   // 创建Axios的实例 context
 
