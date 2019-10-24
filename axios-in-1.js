@@ -719,7 +719,6 @@ return (function (modules) { // 自执行函数，webpack啟動函數
       utils.forEach(fns, function transform(fn) {
         data = fn(data, headers);
       });
-
       return data;
     };
   }),

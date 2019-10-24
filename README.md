@@ -32,21 +32,18 @@ Axios有多种请求的写法，但其实核心是执行的是同一个方法，
 
 ```js
 function createInstance(defaultConfig) {
-  var context = new Axios(defaultConfig); // 创建Axios的实例context
+  var context = new Axios(defaultConfig); 
   var instance = bind(Axios.prototype.request, context);
-  // 相当于Axios.prototype.request.bind(context)
   utils.extend(instance, Axios.prototype, context);
-  // 将 Axios 原型上的方法（request,getUri,get,post,put...）拷贝到 instance
   utils.extend(instance, context);
-  // 将 Axios 的实例 context 上的属性（defaults、interceptors）拷贝到 instance
   return instance;
 }
 var axios = createInstance(defaults); // 将要被导出的axios对象
 ```
 
-你可以看到 axios 是createInstance的执行返回的instance，而instance是bind函数的执行结果，传入的参数是：Axios.prototype.request 和 context，前者是Axios的原型方法request，后者是一个Axios的实例
-所以，bind函数是我们理解的关键。
-先看一下作为工具函数的 bind 和 extend 是怎么实现的。
+你可以看到 _axios_ 是 _createInstance_ 函数的返回值，在 _createInstance_ 中可以看到函数返回的是 _bind_ 函数的执行结果，传入 _bind_ 的是 _Axios.prototype.request_ 和 _context_，前者是 _Axios_ 的原型方法 _request_ ，后者是一个 _Axios_ 实例。
+
+为了理解 _bind_ 函数的执行结果，我们先看一下作为工具函数 _bind_ 做了什么事。
 
 ```js
 function bind(fn, thisArg) {
@@ -60,73 +57,55 @@ function bind(fn, thisArg) {
 };
 ```
 
-你可以看到 bind 函数执行返回一个包裹函数 wrap ，wrap 执行返回 fn 函数的apply调用结果，传入了 wrap 函数接收的参数数组 args。
-
-所以回到前面的这句：
+结合这句代码：
 `var instance = bind(Axios.prototype.request, context)`
 
- `instance` 指向 wrap 函数，instance 执行也就是 wrap 执行，返回的是 `Axios.prototype.request.apply` 的执行结果，执行时this指向context，即Axios的实例。
+_bind_ 函数接收函数 _request_ 和执行上下文 _context_ ，执行返回一个包裹函数 _wrap_ ，_wrap_ 函数返回 _request_ 函数的调用结果，把执行时的 this 改成了 context ，并传入了接收的参数数组 args 。
 
-那我们再看看 extend 的实现：
-```js
-function extend(a, b, thisArg) {
-  forEach(b, function assignValue(val, key) { // 遍历b的属性，对每个属性执行回调 assignValue
-    if (thisArg && typeof val === 'function') { 
-    // thisArg传了，并且当前遍历的属性值是函数，则改动函数中的this指向，并且拷贝给对象 a
-      a[key] = bind(val, thisArg);
-    } else {
-      a[key] = val;
-    }
-  });
-  return a;
-}
-```
+可见实现效果和原生的 _bind_ 方法相同，即相当于：`Axios.prototype.request.bind(context)`
 
-可见，extend 的作用就是：把对象b的属性 扩展到对象a上，同时考虑了属性是函数时，this的指向问题，你可以通过传第三个参数手动改变this。
-
-我们再回到这句：
-
-`var axios = createInstance(defaults);`
-
-我们暂且把 defaults 看作一个默认配置对象，其实它确实是如此。
-axios 是 createInstance 返回出的 instance。instance 指向 wrap 函数。因为 wrap 函数的实现，最后我们可以理解为：axios 指向了改变了 this 的 `Axios.prototype.request` 这个函数。
+因此 _instance_ 指向 _wrap_ 函数， _instance_ 执行即 _wrap_ 执行，返回的是 _Axios.prototype.request_ 的执行结果，执行时 this 指向一个 Axios 的实例。我们可以理解为：axios 指向了改变了 this 的 `Axios.prototype.request` 这个函数。
 
 ```js
- utils.extend(instance, Axios.prototype, context);
-  // 将 Axios 原型对象上的属性拷贝到 instance 对象
-  utils.extend(instance, context);
-  // 将 context（Axios 实例）上的属性拷贝到 instance 对象
+utils.extend(instance, Axios.prototype, context);
+utils.extend(instance, context);
 ```
 
-由上可知，`axios` 本身最后挂载了 Axios 原型上所有属性，和Axios 实例的所有属性，并且这些属性方法它的this，都指向了同一个个Axios实例。
+extend 函数我们就不具体细看了，它的作用很好理解，就是把对象b的属性扩展到对象a上，同时考虑了属性是函数时，this的指向问题。
+
+于是上两句代码就是，将 _Axios_ 原型对象上的属性拷贝到 _instance_ 对象上，将 Axios 实例上的属性拷贝到 _instance_ 对象上。因此 _axios_ 最后挂载了 _Axios_ 原型上所有属性，和 _Axios_ 实例的所有属性，其中的方法中的 this ，都指向同一个 Axios 实例。
 
 ## 探究Axios构造函数
 
-既然我们知道 axios 指向 Axios.prototype.request，所以 Axios.prototype.request 是 Axios 构造函数的核心方法，我们先看看Axios构造函数本身。
+ axios 实际上指向 Axios.prototype.request 方法，即 Axios 的原型方法 request ，我们先看看 Axios 构造函数本身。
 
 ```js
 function Axios(instanceConfig) {
   this.defaults = instanceConfig;
   this.interceptors = {
-    request: new InterceptorManager(),
+    request: new InterceptorManager(), // 拦截器管理器实例
     response: new InterceptorManager()
   };
 }
-// 发送请求的方法
 Axios.prototype.request = function request(config) {
-  // 代码省略，稍后分析
+  // ....
 };
 // ....
-// 往Axios原型上挂载delete,get等方法，这些方法返回request的执行结果
+```
+
+Axios 的实例挂载了两个属性，一个是 defaults ，属性值为传入的 instanceConfig ，另一个是 interceptors ，一个拦截器对象，包含两个属性 request 和 response ，属性值都为 InterceptorManager 实例。也就是 interceptors 的 request 和 response 属性各自对应请求拦截器管理器和响应拦截器管理器。
+
+接下来，还会往 Axios.prototype 挂载一些方法，我们继续看：
+
+```js
 utils.forEach(['delete', 'get', 'head', 'options'], function(method) {
   Axios.prototype[method] = function(url, config) {
     return this.request(utils.merge(config || {}, {
-      method: method,
+      method: method,, 
       url: url
     }));
   };
 });
-// 往Axios的原型上挂载post等方法（都是可以传请求主体的），这些方法也是返回request方法的执行结果
 utils.forEach(['post', 'put', 'patch'], function(method) {
   Axios.prototype[method] = function(url, data, config) {
     return this.request(utils.merge(config || {}, {
@@ -138,17 +117,19 @@ utils.forEach(['post', 'put', 'patch'], function(method) {
 });
 ```
 
-所以，这些get post put等方法，往Axios.prototype上挂载后，就能直接通过 axios.get、axios.post、axios.put .... 调用
+这是往 Axios.prototype 上挂载 get , post , head 等方法，因此 axios 实例能直接调用这些方法。
 
-因为之前 Axios 原型方法 requset 也被拷贝到 axios 对象作为自有属性。所以，也可以 axios.request() 这么调用。
+注意到这些方法都是执行返回 this.request 即 Axios.prototype.request 的执行结果
 
-我们看到，发起请求的API的写法有多种，但实际上最后都调用了 Axios.prototype.request 方法。
+加上前面提到的， axios 对象已经挂载了 Axios 原型上的属性。因此 axios 也可以直接调用 request 方法
+
+所以看到，发起请求的API的写法有多种，但实际上最后都调用了 Axios.prototype.request 方法。
 
 ## 配置对象config怎么起作用
 
-探究完 Axios 构造函数后，在探究 Axios.prototype.request 之前，我们先看看开发者传入的 config ，它在源码里面经历了什么，怎么一步步传到需要它的地方。
+我们注意到用户传入的 config 对象经过了很多层的传递，它在源码里面经历了什么，怎么一步步传到需要它的地方。
 
-axios 文档告诉我们，你可以定义这些配置项：
+axios 文档告诉我们，我们可以定义这些配置项：
 
 |配置项|说明|
 |---|---|
@@ -167,17 +148,13 @@ axios 文档告诉我们，你可以定义这些配置项：
 | `responseType`|服务器响应的数据类型|
 | `auth` 等......|......|
 
- config 是一个对象，是 axios 内部沟通的桥梁，也是开发者与 axios 内部的沟通桥梁。
-
 ### axios的默认config
 
 在 /axios.js 文件中
 
 ```js
 var defaults = require('./defaults');
-
 var axios = createInstance(defaults);
-
 function createInstance(defaultConfig) {
   var context = new Axios(defaultConfig);
   // ....省略
@@ -185,7 +162,7 @@ function createInstance(defaultConfig) {
 }
 ```
 
-createInstance 函数接收 ./defaults 文件导出的 defaults 对象，再传给 new Axios 执行，我们看看 这个config 在 Axios 构造函数中怎么被处理：
+我们看到 ./defaults 文件导出一个默认的 config 对象，赋给了变量 defaults ，再传入 createInstance 函数执行，在 createInstance 函数中，传入 new Axios 执行，前面提到 Axios 构造函数接收的默认配置对象 config 会挂载到创建的 Axios 实例上，如下所示：
 
 ```js
 function Axios(instanceConfig) {
@@ -194,9 +171,7 @@ function Axios(instanceConfig) {
 }
 ```
 
-你会看到，默认配置对象 defaults 作为属性挂载到 Axios 的实例上。
-
-那开发者自己传的 config ，是怎么处理的，要看Axios.prototype.request 函数的实现：
+那开发者自己传入的配置对象 config ，是怎么处理的，这就要看 Axios.prototype.request 函数的实现，因为它才是发起请求的 API 真正要执行的函数。
 
 ```js
 Axios.prototype.request = function request(config) {
@@ -206,183 +181,256 @@ Axios.prototype.request = function request(config) {
 };
 ```
 
-我们知道，axios(config)，相当于 Axios.prototype.request(config) 执行。由上面代码可知，传入的 config 对象会和默认的 defaults 对象合并，具体的合并细节请看源码。
-
-我们知道，Axios实例的属性被添加到 axios 上了，成为自有属性了，所以 Axios实例的 defaults 属性添加到了 axios 上了。
-
-所以开发者可以通过 `axios.defaults` 直接修改默认配置中的配置项，像下面这样：
+request 方法中，this 指向 Axios 实例，调用 mergeConfig 方法，把传入的 config 对象和 Axios 实例上的 defaults 属性值（即默认的配置对象）合并，具体的合并细节我们来看看 mergeConfig 函数的实现：
 
 ```js
-axios.defaults[configName] = value;
+function mergeConfig(config1, config2 = {}) {
+  var config = {}; // 结果对象
+
+  utils.forEach(['url', 'method', 'params', 'data'], function valueFromConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') { // 如果config2中这四个设置项有定义
+      config[prop] = config2[prop]; // 就將其加入到config对象中
+    }
+  });
+
+  utils.forEach(['headers', 'auth', 'proxy'], function mergeDeepProperties(prop) {
+    if (utils.isObject(config2[prop])) {
+      // 如果config2中该属性值是对象，就把config1和config2的该属性值深度合并，赋给config
+      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
+    } else if (typeof config2[prop] !== 'undefined') {
+      // config2中該屬性值有定义，但不是对象，就直接加入到config
+      config[prop] = config2[prop];
+    } else if (utils.isObject(config1[prop])) {
+      // config2中该属性未定义，但config1中有定义并且是对象，把config1的该属性值进行内部的深度合并，即去掉重复的属性
+      config[prop] = utils.deepMerge(config1[prop]);
+    } else if (typeof config1[prop] !== 'undefined') {
+      // 如果config2中該属性未定义，config1该属性有定义，但不是對象，直接加入到config中
+      config[prop] = config1[prop];
+    }
+  });
+  utils.forEach(['baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer', 'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName', 'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent', 'httpsAgent', 'cancelToken', 'socketPath'], function defaultToConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop]; // 如果config2中該属性有定义，将其拷贝到config中
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop]; // config2上該属性未定义，但config1中有定义，则加入config对象中
+    }
+  });
+  return config;
+};
 ```
 
-除了这种修改默认配置的方式之外，axios 对象还对外暴露了一个 create 方法，供开发者传入通用的配置对象
+从调用的方式可知， config1 是 axios 的默认配置， config2 是用户自定义的配置。具体的合并细节见注释。
 
-axios.js文件中：
+我们知道 Axios实例的 defaults 属性添加到了 axios 上了，所以用户可以通过 `axios.defaults` 直接修改默认配置中的配置项，像下面这样：
+
+`axios.defaults[configName] = value;`
+
+除了这种修改默认配置的方式之外，axios 对象还对外暴露了一个 create 方法，供开发者传入通用的配置对象。像下面这样，调用 create 方法，传入自定义的通用配置。
+
+```js
+let newAxiosInstance = axios.create({
+  [配置项名称]: [配置项的值]
+  // ...
+})
+```
+
+我们看看 axios.create 做了什么事：
 
 ```js
 axios.create = function(instanceConfig) {
-  // 传入的config和默认的合并，createInstance接收整合好的config
+  // 传入的config和默认配置合并
   return createInstance(mergeConfig(axios.defaults, instanceConfig));
 };
 ```
 
-因此开发者可以像下面这样，自己创建一个 Axios 实例，传入自定义的通用配置。
-
-```js
-let newAxiosInstance = axios.create({
-  configName: value,
-})
-```
+create 方法先调用 mergeConfig ，将传入的配置和默认的配置合并。再把整合好的配置传入 createInstance 函数执行，新创建一个 axios 对象，注意 axios.create 设置的是通用配置。
 
 总结一下，一共有三种传配置的方式
 
-- axios(config)
-- axios.defaults[name] = value
-- axios.create(config)
+1. _axios(config)_ 等通过 Axios.prototype.request 的调用传入配置项
+2. `axios.defaults[name] = value`
+3. `axios.create(config)`
 
-因为 config 最后要整合成一个，这三种方式叠加使用的话，肯定涉及到覆盖，因此存在优先级的问题。
+ config 最后要整合成一个，这三种方式叠加使用的话，肯定涉及到覆盖，因此存在优先级的问题。
 
-优先级从高到低：
+由于2和3都是设置的默认配置，1的优先级肯定最高，3创建的新的 axios 它接收的配置会整合默认配置，所以优先级排第二：
 
   1. request方法的的参数config
   2. Axios实例属性defaults
-  3. 默认配置对象defaults（/lib/defaults.js)
+  3. 默认配置对象defaults（来自/lib/defaults.js)
 
 ## 探究 Axios.prototype.request
 
-前面我们看了 Axios 的实现，也看了 config 是怎么传递并使用的，现在来到了重头戏：request 这个核心方法：
+前面我们看了 Axios 构造函数，也看了 config 是怎么传递和合并的，现在来看 request 这个核心方法：
+
 ```js
 Axios.prototype.request = function(config) {
   // 省略....
   config = mergeConfig(this.defaults, config);
-
-  var chain = [dispatchRequest, undefined]; // chain数组：存放拦截器方法和dispatchRequest方法
-  
+  var chain = [dispatchRequest, undefined]; 
   var promise = Promise.resolve(config);
-
   this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
     chain.unshift(interceptor.fulfilled, interceptor.rejected);
   });
-
   this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
     chain.push(interceptor.fulfilled, interceptor.rejected);
   });
-
   while (chain.length) {
-    promise = promise.then(chain.shift(), chain.shift());
+    promise = promise.then(chain.shift(), chain.shift())
   }
-
   return promise;
 };
 ```
 
-从上可知，在chain数组中，用于发送请求的 dispatchRequest 函数位于数组的“中间位置”，在它前面的是请求拦截器方法，它后面是响应拦截器方法，并且这些方法都是成对地加入数组的，分别作为成功的回调，和失败的回调。
+前面讲过 _config_ 整合了默认配置和传入的配置。然后定义一个数组 _chain_ ，先放入用于发送请求的 _dispatchRequest_ 函数和一个 _undefined_ 。
 
-并且我们可知，不管有没有拦截器方法加入到chain数组，chain数组中 dispatchRequest 函数是肯定存在的，它肯定会被执行。
-
-`var promise = Promise.resolve(config)`
-
-Promise.resolve() 返回一个以 config 为实现的 promise 对象，它继续调用 then ，会执行 then 的成功回调，如果我们在回调里返回一个新的 promise ，在这个promise 中 resolve 出修改后的 config ，这样下次 then 的时候就能拿到 config 再做修改，并再次 resolve 出来。
-
-所以 while 循环实现的是，将 chain 数组里的回调成对地从数组中出列，遍历了一遍 chain 数组，实现了 then 链式调用，每次 then 都返回出新的promise对象，并 resolve(config) ，因此 config 实现了在then 调用链中的传递。
-
-举个简单的例子，大致像这样：
+接着 `var promise = Promise.resolve(config)` 创建一个以 _config_ 为实现的成功了的 _Promise_ 实例，它的 _then_ 中的成功回调可以接收到 _config_ 对象。
 
 ```js
-var p = Promise.resolve(config)
-p.then(interceptor.request.fulfilled, interceptor.request.rejected)
-       .then(dispatchRequest, undefined)
-       .then(interceptor.response.fulfilled, interceptor.response.rejected)
+this.interceptors.request.forEach(interceptor => {
+  chain.unshift(interceptor.fulfilled, interceptor.rejected);
+});
+this.interceptors.response.forEach(interceptor => {
+  chain.push(interceptor.fulfilled, interceptor.rejected);
+});
 ```
 
-我们知道，request.interceptor 请求拦截器，是用于发起请求前的准备工作，比如修改请求的data（请求主体）和 header。
+我们前面提到过，_this.interceptors.request_ 和 _this.interceptors.response_ 是 Axios 实例的 _interceptors_ 属性（是一个对象）的属性，属性值都为 `new InterceptorManager()`
 
-response.interceptor 响应拦截器，是用于响应数据返回之后的处理工作。
+new InterceptorManager() 具体是什么呢？我们看看 InterceptorManager 这个构造函数和它的 forEach 方法：
 
-整个请求的发起过程是通过 dispatchRequest 实现。dispatch 英文是派发分发的意思
+```js
+function InterceptorManager() {
+  this.handlers = [];
+}
+InterceptorManager.prototype.forEach = function (fn) {
+  utils.forEach(this.handlers, function (h) {
+    if (h !== null) {
+      fn(h);
+    }
+  });
+};
+```
+
+可见 _InterceptorManager_ 的实例维护了一个数组 _handlers_ 。我们后面会谈到它其实是用来存放拦截器的。
+
+_InterceptorManager_ 的原型方法 _forEach_ 就是遍历实例的 _handlers_ 数组，跳过为 null 的项，将每一项拦截器传入 _fn_ 执行。 _fn_ 其实就是 _forEach_ 的回调函数，如下所示：
+
+```js
+function (interceptor) {
+  chain.unshift(interceptor.fulfilled, interceptor.rejected);
+}
+function (interceptor) {
+  chain.push(interceptor.fulfilled, interceptor.rejected);
+}
+```
+
+可见 _this.interceptors.request_ 的 _handlers_ 数组中的请求拦截器的 _fulfilled_ 和 _rejected_ 被 unshift 到 chain 数组的开头，_this.interceptors.response_ 的 _handlers_ 数组中的响应拦截器的 _fulfilled_ 和 _rejected_ 被 push 到 chain 数组的末尾。
+
+并且它们都是成对地加入进来。问题来了，handlers 数组是怎么存了这些拦截器的？其实是通过用户调用 use 这个方法：
+
+```js
+InterceptorManager.prototype.use = function (fulfilled, rejected) {
+  this.handlers.push({
+    fulfilled: fulfilled,
+    rejected: rejected
+  });
+  return this.handlers.length - 1;
+};
+```
+
+用户通过调用 _axios.interceptors.request.use_ 添加请求拦截器方法，它是用于发起请求前的准备工作，比如修改请求的 data 和 header ，下面是用户使用 use 的方式：
+
+```js
+axios.interceptors.request.use(config => {
+  // 在发送http请求之前做一些事情
+  return config; // 有且必须有一个config对象被返回
+}, error => {
+  // 请求出错时做一些事情
+  return Promise.reject(error);
+});
+```
+
+use 可以接收用户定义的发送请求前的成功回调，和请求错误的失败回调，把它们作为 fulfilled 和 rejected 的属性值添加到一个对象中，并将对象 push 到 handlers 数组中。注意：成功的回调必须返回 config 对象。
+
+同样的，用户调用 axios.interceptors.response.use 添加响应拦截器方法，用于响应数据返回之后的处理工作：
+
+```js
+axios.interceptors.response.use(response => {
+  // 针对响应数据做一些事情
+  return response;
+}, error => {
+  // 对于响应出错做一些事情
+  return Promise.reject(error);
+});
+```
+
+完成上面往 chain 数组添加拦截器方法后，现在 chain 数组就存放了拦截器方法（如果有）和 dispatchRequest 方法，接下来进入 while 循环：
+
+```js
+while (chain.length) {
+  promise = promise.then(chain.shift(), chain.shift());
+}
+```
+
+promise 是已经成功了的 promise 实例，它调用 then ，传入从 chain 数组的开头 shift 出来的方法，也就是， chain 数组成对存放的拦截器方法，现在被成对地被移除出来，作为 then 的成功回调和失败回调。then 返回的 promise 实例覆盖 promise 变量，继续调用 then ，实现 then 的链式调用
+
+then 中的成功回调能接收到 config ，我们可以在成功回调中对 config 做一些修改，并返回 config ，下次调用 then 时，它里面的成功回调就能拿到 config 再做一些事情，并再次 return 出来。
+
+就这样，在 while 循环中， chain 数组中的方法被双双的移除，config 对象也在 promise.then 的链式调用链中传递，直到 chain 数组为空，循环结束。
+
+接下来看看 chain 数组中的 dispatchRequest 函数。
 
 ## dispatchrequest 做了什么
 
-我们知道，dispatchrequest 做的是真正发起请求的工作。
-
 ```js
 function dispatchRequest(config) {
-  // 如果设置了中断请求，中断请求抛出原因
-  // 整合 config.url
-  // 确保有config.headers
-  // 调用transformData转换请求的 data，赋给config.data
-  // 对 headers 进行合并处理
-  // 删除header属性里的无用属性delete,get,head,post等
-
-  // adapter 是HTTP请求适配器，优先使用自定义的适配器，不然就用默认的
+  // ...省略
   var adapter = config.adapter || defaults.adapter;
-
   return adapter(config).then( /*代码省略*/ );
 };
   ```
 
-我们只关注后面两句关键的代码，如上。
-
-可见 dispatchRequest 做了三件事：
-
-1. 在 config 传给 adapter 执行之前，对 config 做最后的处理。
-2. 执行 adapter(config) ，发起请求。
-3. 请求完成后，如果成功，则将header,data,config.transformResponse整合到response并返回（代码未展示）
-
-回顾一下，在 Axios.prototype.request 方法里会调用 chain 数组里的dispatchRequest 方法，而 dispatchRequest 又会调用 adapter 方法，接下来看看 adapter 的实现。
+我们只关注后面两句关键的代码，先获取用户在 config 中自定义的 adapter ，如果用户没有定义，则使用默认的 adapter 。然后执行 adapter(config) ，一般用户不会自定义 adaptor ，我们看看默认的 defaults.adapter 怎么实现的：
 
 ### 适配器 adapter 的实现
 
-我们已知，如果开发者没有在 config 里自定义 adaptor ，就会取defaults.adaptor，我们看看默认的 adaptor 是怎么实现的。因为一般开发者都不会写 adaptor。
-
 ```js
-function getDefaultAdapter() {
-  var adapter;
-  if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
-    // 对于 node 环境使用 HTTP adapter
-    adapter = require('./adapters/http');
-  } else if (typeof XMLHttpRequest !== 'undefined') {
-    // 对于浏览器环境使用 XHR adapter
-    adapter = require('./adapters/xhr');
-  }
-  return adapter;
-}
 var defaults = {
   adapter: getDefaultAdapter(),
   // ....
 };
+function getDefaultAdapter() {
+  var adapter;
+  if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    adapter = require('./adapters/http');
+  } else if (typeof XMLHttpRequest !== 'undefined') {
+    adapter = require('./adapters/xhr');
+  }
+  return adapter;
+}
 ```
 
-我们看到，defaults.adaptor 的属性值是 getDefaultAdapter() 的返回值。
-在 getDefaultAdapter 函数中，可以看到在获取 adapter 时，做了对环境的判断，也就是，针对浏览器环境或node环境，引入不同的 adapter 函数。
+我们看到，defaults.adaptor 的属性值是 getDefaultAdapter() 的返回值。在 getDefaultAdapter 函数中，对环境做了判断，引入不同的 adapter 函数。 Node.js 环境下，引入 http.js 模块；浏览器环境下，引入 xhr.js 模块。
 
-我们axios常用的执行环境是浏览器，所以我们看看浏览器发起请求的 xhrAdapter 函数，在 xhr.js 文件中，
+http.js 文件中使用内置的 http 模块来实现请求的发送，这里不作具体分析。
+
+xhr.js 文件中导出了 xhrAdapter 函数，我们看看它的实现。
 
 ### xhrAdapter 的实现
-
-xhrAdapter 函数返回出一个promise实例，是对 XMLHTTPRequest 一套流程的封装。
 
 ```js
 function xhrAdapter(config) {
   return new Promise(function(resolve, reject) {
-    // 把config中的data和headers拿到
-    var requestData = config.data;
-    var requestHeaders = config.headers;
-    // ...代码省略
+
     var request = new XMLHttpRequest(); // 创建 XMLHttpRequest 实例
-    // ...代码省略
-    // 调用request的实例方法open，发起xhr请求，参数对应：方法，URL，是否异步请求（true为异步）
+
+    // 调用request的实例方法open，发起xhr请求
     request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
-    // ...代码省略
+    // ...
     // 监听 readyState，设置对应的处理回调函数
     request.onreadystatechange = function() {
-      if (!request || request.readyState !== 4) {
-        return;
-      }
-      if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
-        return;
-      }
+      // ...
       // 准备 response 对象
       var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
       var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
@@ -398,126 +446,79 @@ function xhrAdapter(config) {
       // 清除request对象
       request = null;
     };
-    // 处理浏览器请求取消，和手动取消相反
-    request.onabort = function handleAbort() {...};
-    // 处理低层次网络错误
-    request.onerror = function handleError() {...};
-    // 处理超时
-    request.ontimeout = function handleTimeout() {...};
+
     // 发送请求
     request.send(requestData);
   });
 };
 ```
 
-## 拦截器 InterceptorManager
+我们对函数做了一些删减， xhrAdapter 函数返回出一个 promise 实例，是对 XMLHTTPRequest 发起请求的流程的封装，这是我们熟悉的。
 
-还记得吗？Axios构造函数中，往Axios实例上挂载了 interceptors 对象，如下：
-
-```js
-var InterceptorManager = require('./InterceptorManager');
-function Axios(instanceConfig) {
-  this.defaults = instanceConfig;
-  this.interceptors = {
-    request: new InterceptorManager(),
-    response: new InterceptorManager()
-  };
-}
-```
-
-interceptors 存放两个 InterceptorManager 的实例，一个是请求拦截器的管理者，一个是响应拦截器的管理者。看看 InterceptorManager 是什么样的。
+发送请求成功后，根据返回的响应数据我们整合出了 _response_ 对象，并传入 _settle_ 方法执行，根据 response 决定是调用 resolve 还是 reject ，我们看看 settle 方法的实现：
 
 ```js
-function InterceptorManager() { // 维护一个数组
-  this.handlers = [];
-}
-// 往数组里添加一个新的拦截器对象，对象里存放处理成功的回调、处理失败的回调
-InterceptorManager.prototype.use = function(fulfilled, rejected) {
-  this.handlers.push({
-    fulfilled,
-    rejected
-  });
-  return this.handlers.length - 1; // 返回在数组中的索引作为拦截器的id
-};
-// 从数组里移除一个拦截器对象，让拦截器id对应的索引上的值为null
-InterceptorManager.prototype.eject = function(id) {
-  if (this.handlers[id]) {
-    this.handlers[id] = null;
+function settle(resolve, reject, response) {
+  var validateStatus = response.config.validateStatus;
+  if (!validateStatus || validateStatus(response.status)) {
+    resolve(response);
+  } else {
+    reject(createError(
+      'Request failed with status code ' + response.status,
+      response.config,
+      null,
+      response.request,
+      response
+    ));
   }
 };
-// 遍历所有注册过的拦截器，这个方法会跳过那些被移除了的拦截器
-InterceptorManager.prototype.forEach = function(fn) {
-  utils.forEach(this.handlers, function forEachHandler(h) {
-    if (h !== null) { // 如果遍历到的值不为null，才执行回调
-      fn(h);
-    }
-  });
-};
-module.exports = InterceptorManager;
 ```
 
-由此可见 new InterceptorManager() 返回的是一个对象，这个对象维护了一个 handlers 数组，它专门存放拦截器对象。
-
-handlers 数组里的每一个拦截器对象，有两个属性，分别是成功的回调和失败的回调。
-
-拿请求拦截器来说，开发者想编写拦截器方法，是像下面这样写的：
+我们在 \defaults.js 文件中发现，默认配置项中有 validateStatus 函数，如果用户也配置了 validateStatus ，会优先采用用户的配置，这是 mergeConfig 函数中做的规定，你可以回去看看。
 
 ```js
-axios.interceptors.request.use(function (config) {
-  // 你想在发送请求之前，所做的操作
-  return config;
-}, function (error) {
-  // 你对于请求错误，所做的一些操作
-  return Promise.reject(error);
-});
-```
-为什么我们可以直接 axios.interceptors.request.use，因为 interceptors 这个 Axios 实例的属性，已经被拷贝到 axios 身上，就能通过 axios 直接调用 InterceptorManager.prototype.use 原型方法，传入两个参数（函数），成功的回调，和失败的回调，他们俩会放到一个对象中，并 push 进数组 handler 中。
-
-成功的回调，是对 config 进行处理，失败的回调，做的是接收错误对象的传入，并通过 Promise.reject(error)，把错误对象传递下去。
-
-那么，开发者添加了拦截器方法，拦截器方法是如何被推入 chain 数组的呢，我们回到 Axios.prototype.request 方法中，有下面两句代码:
-
-```js
-this.interceptors.request.forEach(function(interceptor) {
-  chain.unshift(interceptor.fulfilled, interceptor.rejected);
-});
-
-this.interceptors.response.forEach(function(interceptor) {
-  chain.push(interceptor.fulfilled, interceptor.rejected);
-});
-```
-```js
-// Axios 构造函数中
-this.interceptors = {
-  request: new InterceptorManager(),
-  response: new InterceptorManager()
+var defaults = {
+  validateStatus (status) { // HTTP状态码必须满足200-300
+    return status >= 200 && status < 300;
+  }
 };
 ```
 
-我们知道，`this.interceptors.request` 也就是 new InterceptorManager() 的一个实例，它可以调用 InterceptorManager 原型方法：forEach。
+对于 response.status ，即 响应的 HTTP 状态码，我们调用 validateStatus 函数对它进行验证，返回 true ，promise 将被 resolve ，否则 promise 将被 reject 。注意，promise 指的是 xhrAdapter 函数返回的 promise 实例
+
+回到 dispatchRequest 函数，它返回 adapter 函数执行返回的 promise 实例的 then 调用结果。
 
 ```js
-InterceptorManager.prototype.forEach = function(fn) {
-  utils.forEach(this.handlers, function(h) {
-    if (h !== null) { // 如果遍历到的值为null，不执行回调
-      fn(h);
+function dispatchRequest(config) {
+  // ...省略
+  var adapter = config.adapter || defaults.adapter;
+  return adapter(config).then(function onAdapterResolution(response) {
+    throwIfCancellationRequested(config);
+    // Transform response data
+    response.data = transformData(
+      response.data,
+      response.headers,
+      config.transformResponse
+    );
+    return response;
+  }, function onAdapterRejection(reason) {
+    if (!isCancel(reason)) {
+      throwIfCancellationRequested(config);
+      // Transform response data
+      if (reason && reason.response) {
+        reason.response.data = transformData(
+          reason.response.data,
+          reason.response.headers,
+          config.transformResponse
+        );
+      }
     }
+    return Promise.reject(reason);
   });
 };
 ```
 
-所以 forEach 会遍历 handlers 数组中所有的 注册过的 拦截器，调用回调函数
-我们又知道，这个 forEach 是会遍历 handlers 数组中所有注册过的拦截器，调用回调函数:
-
-```js
-this.interceptors.request.forEach(function (interceptor) {
-  chain.unshift(interceptor.fulfilled, interceptor.rejected);
-});
-```
-
-回调函数做的事情就是，把 handlers 数组中的对象的两个方法，先后地插入到数组 chain 中。
-
-因此，chain 数组就形成了 拦截器方法 + dispathRequest + 拦截器方法 的队列，当然了，这是在你都编写了拦截器方法的情况下。chain 数组中的方法，随着 forEach 每次都被成对地 unshift 出列，充当了 then 的两个参数。
+adapter(config).then 再注册成功和失败的回调，对 adapter 返回的 promise 实例的成功或失败结果，做再次加工，如果返回的是成功的 promise ，调用 transformData 函数对 response.data 做处理，将处理后的 response 返回。如果 adapter 返回的是失败了的 promise 实例的话，则返回一个状态为 rejected 的 promise 对象。
 
 ## 取消请求
 

@@ -257,7 +257,7 @@ function merge(/* obj1, obj2, obj3, ... */) {
       result[key] = val;
     }
   }
-  // 遍历传入的每个对象，遍历对象中的每个键值对，assignValue回调处理每个键值对，把键值对拷贝到result中，如果result中的键值和当前遍历的键值都是对象，递归合并，只要有一个不是对象，就让后者覆盖上来
+
   for (var i = 0, l = arguments.length; i < l; i++) {
     forEach(arguments[i], assignValue);
   }
@@ -292,11 +292,15 @@ function deepMerge(/* obj1, obj2, obj3, ... */) {
 
 /**
  * Extends object a by mutably adding to it the properties of object b.
- * 把对象b的属性扩展到对象a上，同时考虑了属性是方法时，this的指向
+ *
+ * @param {Object} a The object to be extended
+ * @param {Object} b The object to copy properties from
+ * @param {Object} thisArg The object to bind function to
+ * @return {Object} The resulting value of object a
  */
 function extend(a, b, thisArg) {
-  forEach(b, function assignValue(val, key) { // 遍历b的属性。执行回调
-    if (thisArg && typeof val === 'function') { // 如果指定了this，且遍历到的属性是方法，在a写入改绑this后的方法
+  forEach(b, function assignValue(val, key) {
+    if (thisArg && typeof val === 'function') {
       a[key] = bind(val, thisArg);
     } else {
       a[key] = val;
