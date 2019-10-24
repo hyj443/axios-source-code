@@ -342,13 +342,15 @@ InterceptorManager.prototype.use = function (fulfilled, rejected) {
 用户通过调用 _axios.interceptors.request.use_ 添加请求拦截器方法，它是用于发起请求前的准备工作，比如修改请求的 data 和 header ，下面是用户使用 use 的方式：
 
 ```js
-axios.interceptors.request.use(config => {
+axios.interceptors.request.use(
+  config => {
   // 在发送http请求之前做一些事情
-  return config; // 有且必须有一个config对象被返回
-}, error => {
-  // 请求出错时做一些事情
-  return Promise.reject(error);
-});
+    return config; // 有且必须有一个config对象被返回
+  }, error => {
+    // 请求出错时做一些事情
+    return Promise.reject(error);
+  }
+);
 ```
 
 use 可以接收用户定义的发送请求前的成功回调，和请求错误的失败回调，把它们作为 fulfilled 和 rejected 的属性值添加到一个对象中，并将对象 push 到 handlers 数组中。注意：成功的回调必须返回 config 对象。
@@ -356,13 +358,15 @@ use 可以接收用户定义的发送请求前的成功回调，和请求错误�
 同样的，用户调用 axios.interceptors.response.use 添加响应拦截器方法，用于响应数据返回之后的处理工作：
 
 ```js
-axios.interceptors.response.use(response => {
-  // 针对响应数据做一些事情
-  return response;
-}, error => {
-  // 对于响应出错做一些事情
-  return Promise.reject(error);
-});
+axios.interceptors.response.use(
+  response => {
+      // 针对响应数据做一些事情
+    return response;
+  }, error => {
+      // 对于响应出错做一些事情
+    return Promise.reject(error);
+  }
+);
 ```
 
 完成上面往 chain 数组添加拦截器方法后，现在 chain 数组就存放了拦截器方法（如果有）和 dispatchRequest 方法，接下来进入 while 循环：
@@ -486,26 +490,24 @@ var defaults = {
 
 对于 response.status ，即 响应的 HTTP 状态码，我们调用 validateStatus 函数对它进行验证，返回 true ，promise 将被 resolve ，否则 promise 将被 reject 。注意，promise 指的是 xhrAdapter 函数返回的 promise 实例
 
-回到 dispatchRequest 函数，它返回 adapter 函数执行返回的 promise 实例的 then 调用结果。
+回到 dispatchRequest 函数，它做的是什么，adapter 函数接收 config 执行，并调用 then ，then 的返回结果作为 dispatchRequest 函数的返回值。
 
 ```js
 function dispatchRequest(config) {
   // ...省略
   var adapter = config.adapter || defaults.adapter;
-  return adapter(config).then(function onAdapterResolution(response) {
+  return adapter(config).then(function (response) {
     throwIfCancellationRequested(config);
-    // Transform response data
-    response.data = transformData(
+    response.data = transformData(// 转换 response data
       response.data,
       response.headers,
       config.transformResponse
     );
     return response;
-  }, function onAdapterRejection(reason) {
+  }, function (reason) {
     if (!isCancel(reason)) {
       throwIfCancellationRequested(config);
-      // Transform response data
-      if (reason && reason.response) {
+      if (reason && reason.response) { // 转换 response data
         reason.response.data = transformData(
           reason.response.data,
           reason.response.headers,
@@ -518,7 +520,19 @@ function dispatchRequest(config) {
 };
 ```
 
-adapter(config).then 再注册成功和失败的回调，对 adapter 返回的 promise 实例的成功或失败结果，做再次加工，如果返回的是成功的 promise ，调用 transformData 函数对 response.data 做处理，将处理后的 response 返回。如果 adapter 返回的是失败了的 promise 实例的话，则返回一个状态为 rejected 的 promise 对象。
+adapter(config).then 中再注册成功和失败的回调，对 adapter 返回的 promise 实例的成功或失败结果，做再次加工，如果返回的是成功的 promise ，调用 transformData 函数对 response.data 做处理，将处理后的 response 返回。如果 adapter 返回的是失败了的 promise 实例的话，则返回一个状态为 rejected 的 promise 对象。
+
+到目前为止，整个 axios 调用流程就讲完了。核心方法是：Axios.prototype.request 。它做的事情是：如果用户设置了拦截器方法，就将它们推入一个叫 chain 的数组中，chain 数组形成了：[请求拦截器方法 + dispathRequest + 响应拦截器方法] 这样的队列，然后通过链式调用 promise 实例的 then 方法，将 chain 数组中的方法注册为 成功和失败的回调，即都放入微任务队列中等待异步执行。
+
+config 对象在这条 then 调用链中的前半部分传递，到了核心的 dispatchRequest 方法，它调用合适的 adapter 方法，对于浏览器而已就是 xhrAdapter 方法，而 xhrAdapter 方法就是发起 XMLHttpRequest 请求的一套流程的用一层 promise 封装，会根据响应的状态决定将 promise resolve 或 reject 掉。
+
+然后 dispatchRequest 针对 adapter 的执行 promise 实例再调用 then ，对响应的数据做最后的处理，再把 response 对象 return 出来。所以在 then 调用链的后半部分，响应拦截器方法接收的是 response ，做的是对 response 对象的处理，response 在 then 的调用链中传递。
+
+最后 Axios.prototype.request 把经过 then 链式调用的 promise 返回出来，也就是你调用 axios 的返回值，你用它调用 then 就能在成功的回调中拿到 response 对象。
+
+ok，完整的流程就叙述完毕。
+
+下面是一些 axios 库的一些补充功能：
 
 ## 取消请求
 
@@ -537,6 +551,7 @@ axios.get('/user/12345', {
      // 处理错误
   }
 });
+
 axios.post('/user/12345', {
   name: 'new name'
 }, {
@@ -547,9 +562,7 @@ axios.post('/user/12345', {
 source.cancel('Operation canceled by the user.');
 ```
 
-我们发现 要先引用 axios.CancelToken，然后调用 source 方法，返回出一个对象，里面有cancel 和 token，内部怎么实现的，目的是什么。
-
-先看入口
+我们发现 要先引用 axios.CancelToken ，然后调用 CancelToken 的 source 方法，返回出一个对象，里面有 cancel 和 token 属性。我们先从 axios.js 中看到
 
 ```js
 axios.Cancel = require('./cancel/Cancel');
@@ -557,43 +570,61 @@ axios.CancelToken = require('./cancel/CancelToken');
 axios.isCancel = require('./cancel/isCancel');
 ```
 
-先看看 CancelToken 构造函数的 constructor。
+axios 对象挂载了 CancelToken 方法，我们看到它的具体实现：
 
 ```js
 function CancelToken(executor) {
   if (typeof executor !== 'function') {
     throw new TypeError('executor must be a function.');
   }
+
   var resolvePromise;
   this.promise = new Promise(function promiseExecutor(resolve) {
     resolvePromise = resolve;
   });
+
   var token = this;
   executor(function cancel(message) {
     if (token.reason) {
       // Cancellation has already been requested
       return;
     }
-
     token.reason = new Cancel(message);
     resolvePromise(token.reason);
   });
 }
 ```
 
-CancelToken 在初始化的时候要传入一个执行器方法，并且它会给它的实例挂载一个promise对象，最重要的是，它把 promise 的 resolve方法控制权放在了 executor 方法里面。
+CancelToken 构造函数在调用时，传入一个执行器方法 executor ，会在函数内执行 executor 。CancelToken 会给它的实例挂载一个 promise 属性，属性值是一个 promise 对象，值得注意的是， promise 的 resolve 赋给了构造函数内定义的 resolvePromise 变量，resolvePromise 方法在 executor 方法里面调用。
 
-这是什么意思，看一个小例子：
+这意味着什么，先看一个简单的例子：
 
 ```js
 let resolveHandle;
 new Promise((resolve, reject) => {
   resolveHandle = resolve;
+  // resolve('ok')
 }).then(res => {
-  console.log('resolve', res);
+  console.log(res);
 });
-resolveHandle('ok');
+resolveHandle('ok'); // "ok"
 ```
 
-resolveHandle 获取了一个promise的 resolve方法的控制权，要知道，promise对象管控的程序是无法从外部决定它是成功的还是失败的，但这样做就可以在外部控制这个promise的成功了
+我不像正常那样在传入 new Promise 的 执行器函数中调用 resolve 。
 
+而是拿到 resolve 的引用，在外部调用，因为，promise 实例管控的操作，不管是异步还是同步的，都不能从外部决定 promise 实例是成功还是失败的，现在就相当于把控制权交给外部的 resolveHandle ，可以在外部控制这个 promise 成功与否。
+
+```js
+CancelToken.source = function source() {
+  var cancel;
+  var token = new CancelToken(function executor(c) {
+    cancel = c;
+  });
+  return {
+    token,
+    cancel
+  };
+};
+```
+
+CancelToken 函数挂载了一个 source 方法，它返回一个包含 token 和 cancel 的对象，token 的属性值是 CancelToken 的实例。
