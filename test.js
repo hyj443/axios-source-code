@@ -13,30 +13,46 @@
 // }).catch((err) => {
 //   console.log(111, err)
 // });
-let chain = [(c) => {
-  return c
-},(c) => {
-    return c
-  }, (c) => {
-   return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        c.d = 4
-        resolve(c)
-      }, 1000);
-   }).then((res) => {
-     return res
-    })
-  }, (res) => {
-    return res
-  }, (res) => {
-    res.g = 7
-    return res
-  }]
-let p = Promise.resolve({ a: 1 })
-while (chain.length) {
-  console.log(p)
-  p=p.then(chain.shift(),undefined)  
-}
+// let chain = [(c) => {
+//   return c
+// },(c) => {
+//     return c
+//   }, (c) => {
+//    return new Promise((resolve, reject) => {
+//       setTimeout(() => {
+//         c.d = 4
+//         resolve(c)
+//       }, 1000);
+//    }).then((res) => {
+//      return res
+//     })
+//   }, (res) => {
+//     return res
+//   }, (res) => {
+//     res.g = 7
+//     return res
+//   }]
+// let p = Promise.resolve({ a: 1 })
+// while (chain.length) {
+//   console.log(p)
+//   p=p.then(chain.shift(),undefined)  
+// }
+// p.then((res) => {
+//   console.log(res,'最后的拿到的值是多少')
+// })
+let p = Promise.resolve(1)
 p.then((res) => {
-  console.log(res,'最后的拿到的值是多少')
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(res+1)
+    }, 1000);
+  }).then((res) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(res+1)
+      }, 1000);
+    })
+  })
+}).then((res) => {
+  console.log(res)
 })
