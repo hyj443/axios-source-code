@@ -2,33 +2,22 @@
 
 ## Axios是什么
 
-Axios 是一个基于promise的HTTP库
-主要特性有：
+Axios 不是一种新的技术，是一个基于 promise 的 HTTP 库，本质上是对原生 XHR 的封装，只不过它是基于 Promise 实现的版本。
 
-- 在浏览器中创建`XMLHttpRequest`对象获取数据
+有以下特点：
+
+- 在浏览器中创建 XMLHttpRequest 对象获取数据
 - 在 node.js 创建 HTTP 请求
 - 支持 Promise
 - 拦截请求和响应
 - 转换请求数据和响应数据
 - 取消请求
-- 自动转换JSON数据
+- 自动转换 JSON 数据
 - 客户端支持防御 XSRF
 
-## 多种请求写法
+## **axios** 到底是什么
 
-Axios有多种请求的写法，但其实核心是执行的是同一个方法，后面将阐述
-| API 写法        |说明                |
-|-------------|------------------- |
-|axios(config)|传入相关配置来创建请求|
-|axios(url[, config])|可以只传url，但会默认发送 GET 请求|
-|axios.request(config)|config中url是必须的|
-|axios[method](url[, config])<br>axios[method](url[, data[, config]])|为了方便，给所有支持的请求方法提供了别名<br>这种情况下，不用再config中指定url、method、data|
-
-## 如何实现多种写法
-
-### 从入口文件入手
-
-我们先看入口文件 axios.js，看看 `axios` 到底是什么
+`axios` 的定义在入口文件 axios.js，看看它到底是什么
 
 ```js
 function createInstance(defaultConfig) {
@@ -41,36 +30,30 @@ function createInstance(defaultConfig) {
 var axios = createInstance(defaults); // 将要被导出的axios对象
 ```
 
-你可以看到 _axios_ 是 _createInstance_ 函数的返回值， _createInstance_ 函数返回的是 _bind_ 函数的执行结果。也就是 axios 指向了
- bind 函数的执行结果。到底 _bind_ 函数执行返回了什么，我们先看看作为工具函数的 _bind_ ：
+ createInstance 函数的返回值赋给了变量 axios，在 createInstance 函数中，首先创建了一个 Axios 实例，赋给变量 context，再执行 bind 函数并将返回值赋给变量 instance，然后调用 utils.extend 函数对 instance 做了一些处理，最后 createInstance 函数返回了 instance。
+
+我们看看 _bind_ 函数执行返回了什么，为了简洁性我用 ES6 的写法将 _bind_ 函数改写了一下：
 
 ```js
 function bind(fn, thisArg) {
-  return function wrap() {
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i];
-    }
+  return function wrap(...args) {
     return fn.apply(thisArg, args);
   };
 };
 ```
 
-我们结合这句代码来看：
-`var instance = bind(Axios.prototype.request, context)`
+结合`var instance = bind(Axios.prototype.request, context)`来看：
 
-传入 _bind_ 的是 _Axios.prototype.request_ 方法和 _context_ ，一个 _Axios_ 实例。 _bind_ 函数执行返回一个函数 _wrap_ ，_wrap_ 函数返回 _request_ 函数的调用结果，调用时 this 指向 context ，并传入了 _wrap_ 函数接收的参数数组 args 。
+bind 函数接收 Axios.prototype.request，经查看它是一个函数，还接收了 context，一个Axios实例，bind 执行返回的是一个新的函数wrap，wrap 函数赋给了 instance，所以 instance 指向了 wrap 函数
 
-可见这里的 bind 函数实现的效果和原生的 _bind_ 相同，即相当于：`Axios.prototype.request.bind(context)`
-
-因此 _axios_ 指向了 _wrap_ 函数， _axios_ 执行即 _wrap_ 执行，返回的是 _Axios.prototype.request_ 的执行结果，执行时 this 指向一个 Axios 的实例。因此可以理解为： axios 指向了改变了 this 的 `Axios.prototype.request` 函数。
+可见该 bind 函数的实现效果和原生 _bind_ 一样，相当于 instance 指向了 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
 utils.extend(instance, context);
 ```
 
-继续看 createInstance 函数的代码，我们简单看看 extend 函数的实现，它的作用就是把对象b的属性扩展到对象a上，同时考虑了属性是函数时，this的指向问题。
+继续看接下来两行代码，我们简单看看 extend 函数的实现，它的作用就是把对象b的属性扩展到对象a上，并返回对象a，同时考虑了属性是方法时，this的指向。
 
 ```js
 function extend(a, b, thisArg) {
@@ -85,7 +68,11 @@ function extend(a, b, thisArg) {
 }
 ```
 
-所以调用 extend 的目的是，将 _Axios_ 原型对象上的属性拷贝到 _instance_ 对象上，将 Axios 实例上的属性拷贝到 _instance_ 对象上。因此 _instance_ ，即 _axios_ 对象挂载了 _Axios_ 原型上的，和 _Axios_ 实例上的所有属性，其中的方法中的 this ，都指向同一个 Axios 实例。
+所以两次调用 extend 是将 _Axios_ 原型上的属性和 Axios 实例上的属性都拷贝到 _instance_ 对象上，其中的方法中的 this ，都指向同一个 Axios 实例。
+
+最后 _createInstance_ 函数把挂载好的 instance 返回了出来，赋给了 axios 变量，因为 instance 指向了 wrap 函数，所以 axios 也指向了 wrap 函数。
+
+因此 _axios_ 执行即 _wrap_ 执行，将会执行并返回 _Axios.prototype.request.apply(context, args)_ ，执行时 this 指向一个 Axios 的实例，args 是 _axios_ 执行时传入的参数组成的数组。因此可以理解为 axios 指向了改变了 this 的 `Axios.prototype.request` 函数，并且这个函数身上挂载了很多属性和方法。
 
 ## 探究Axios构造函数
 
@@ -133,6 +120,40 @@ utils.forEach(['post', 'put', 'patch'], function(method) {
 我们注意到 get/post/head 等这些方法的执行，都是返回 Axios.prototype.request 的执行结果，因为 axios 实际指向 Axios.prototype.request 方法，所以 axios 可以直接作为 request 方法调用。
 
 因此我们可以得出，发起请求的调用写法有多种，比如 axios(config) 、 axios.request(config) 、 axios[method](url[, config]) 等，实际都调用的是 Axios.prototype.request 方法。
+
+## 多种请求写法
+
+Axios有多种请求的写法，但其实核心是执行的是同一个方法，后面将阐述
+| API 写法        |说明                |
+|-------------|------------------- |
+|axios(config)|传入相关配置来创建请求|
+|axios(url[, config])|可以只传url，但会默认发送 GET 请求|
+|axios.request(config)|config中url是必须的|
+|axios[method](url[, config])<br>axios[method](url[, data[, config]])|为了方便，给所有支持的请求方法提供了别名<br>这种情况下，不用再config中指定url、method、data|
+axios 接收的参数就很灵活，针对不同的传参它内部整合成一个config对象。
+
+```js
+Axios.prototype.request = function request(config) {
+  if (typeof config === 'string') {
+    config = arguments[1] || {};
+    config.url = arguments[0];
+  } else {
+    config = config || {};
+  }
+  config = mergeConfig(this.defaults, config);
+  config.method = config.method ? config.method.toLowerCase() : 'get';
+  // ...
+  return promise;
+};
+```
+
+我们可以看到，request方法只设了一个形参config，但用户传入两个参数是有效的，如果 `typeof config === 'string'` 即用户传入的第一个参数是字符串，就把用户传入的第二个参数作为 config ，如果用户没传第二个参数，则 config 取一个空对象，接着把第一个传入的字符串赋给 config.url 属性。
+
+如果用户传的第一个参数不是字符串，那么把它直接赋给 config，如果什么都没传，赋给 config 一个空对象。
+
+然后进行的是默认的配置对象和config的合并，合并后的对象赋给 config 。如果 config对象中method属性值存在，则将它转为小写，如果不存在method属性值，就将 'get' 赋给 config.method
+
+因此，不同的传参方式，都会进行归一化处理成一个config对象。
 
 ## 配置对象config怎么起作用
 
@@ -184,44 +205,6 @@ Axios.prototype.request = function request(config) {
 ```
 
 在 request 方法中，this 指向 Axios 实例，因此 this.defaults 就是 Axios 实例上的 defaults 属性值，即默认的配置对象。 request 函数中，调用了 mergeConfig 函数，将默认配置对象和开发者传入的 config 对象合并，再覆盖到 config ，具体的合并细节我们看看 mergeConfig 的实现：
-
-```js
-function mergeConfig(config1, config2 = {}) {
-  var config = {}; // 结果对象
-
-  utils.forEach(['url', 'method', 'params', 'data'], function valueFromConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') { // 如果config2中这四个设置项有定义
-      config[prop] = config2[prop]; // 就將其加入到config对象中
-    }
-  });
-
-  utils.forEach(['headers', 'auth', 'proxy'], function mergeDeepProperties(prop) {
-    if (utils.isObject(config2[prop])) {
-      // 如果config2中该属性值是对象，就把config1和config2的该属性值深度合并，赋给config
-      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
-    } else if (typeof config2[prop] !== 'undefined') {
-      // config2中該屬性值有定义，但不是对象，就直接加入到config
-      config[prop] = config2[prop];
-    } else if (utils.isObject(config1[prop])) {
-      // config2中该属性未定义，但config1中有定义并且是对象，把config1的该属性值进行内部的深度合并，即去掉重复的属性
-      config[prop] = utils.deepMerge(config1[prop]);
-    } else if (typeof config1[prop] !== 'undefined') {
-      // 如果config2中該属性未定义，config1该属性有定义，但不是對象，直接加入到config中
-      config[prop] = config1[prop];
-    }
-  });
-  utils.forEach(['baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer', 'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName', 'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent', 'httpsAgent', 'cancelToken', 'socketPath'], function defaultToConfig2(prop) {
-    if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop]; // 如果config2中該属性有定义，将其拷贝到config中
-    } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop]; // config2上該属性未定义，但config1中有定义，则加入config对象中
-    }
-  });
-  return config;
-};
-```
-
-从调用的方式可知， config1 接收的是 axios 的默认配置对象， config2 接收的是用户定义的配置对象。具体的合并细节见注释。
 
 我们知道 Axios实例的属性已经被添加到了 axios 对象上了，用户可以通过 `axios.defaults` 访问到 Axios 实例上的 defaults ，可以直接修改默认配置中的配置项，像下面这样伪代码所示：
 
@@ -553,6 +536,53 @@ config 对象在这个微任务队列中的前半部分传递，到了 dispatchR
 意味着，你使用 axios 提供给你的 API 的返回值，再调用 then 就能在回调中拿到 response/reason 对象。
 
 ok，完整的流程就叙述完毕。
+
+## mergeConfig 合并的细节
+
+```js
+function mergeConfig(config1, config2 = {}) {
+  var config = {}; // 结果对象
+
+  utils.forEach(['url', 'method', 'params', 'data'], function valueFromConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') { // 如果config2中这四个设置项有定义
+      config[prop] = config2[prop]; // 就將其加入到config对象中
+    }
+  });
+
+  utils.forEach(['headers', 'auth', 'proxy'], function mergeDeepProperties(prop) {
+    if (utils.isObject(config2[prop])) {
+      // 如果config2中该属性值是对象，就把config1和config2的该属性值深度合并，赋给config
+      config[prop] = utils.deepMerge(config1[prop], config2[prop]);
+    } else if (typeof config2[prop] !== 'undefined') {
+      // config2中該屬性值有定义，但不是对象，就直接加入到config
+      config[prop] = config2[prop];
+    } else if (utils.isObject(config1[prop])) {
+      // config2中该属性未定义，但config1中有定义并且是对象，把config1的该属性值进行内部的深度合并，即去掉重复的属性
+      config[prop] = utils.deepMerge(config1[prop]);
+    } else if (typeof config1[prop] !== 'undefined') {
+      // 如果config2中該属性未定义，config1该属性有定义，但不是對象，直接加入到config中
+      config[prop] = config1[prop];
+    }
+  });
+  utils.forEach(['baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer', 'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName', 'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent', 'httpsAgent', 'cancelToken', 'socketPath'], function defaultToConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop]; // 如果config2中該属性有定义，将其拷贝到config中
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop]; // config2上該属性未定义，但config1中有定义，则加入config对象中
+    }
+  });
+  return config;
+};
+```
+
+从调用的方式可知， config1 接收的是 axios 的默认配置对象， config2 接收的是用户定义的配置对象。具体的合并细节见注释。
+
+整体流程介绍完了，还有一些细节我们拾遗一下。比如 
+我们看看在 Axios.prototype.request 中是怎么实现的。
+
+
+
+
 
 下面是一些 axios 库的一些补充功能：
 

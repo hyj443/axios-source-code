@@ -13,6 +13,20 @@
 // }).catch((err) => {
 //   console.log(111, err)
 // });
+axios('http://localhost:3000/top/playlist/highquality', {
+  method: 'get',
+  params: {
+    before: 1503639064232,
+    limit: 3
+  },
+  timeout: 4000,
+  responseType: 'json',
+  validateStatus: function (status) {
+    return status == 200
+  },
+}).then(res => {
+  console.log(res)
+})
 // let chain = [(c) => {
 //   return c
 // },(c) => {
@@ -40,19 +54,3 @@
 // p.then((res) => {
 //   console.log(res,'最后的拿到的值是多少')
 // })
-let p = Promise.resolve(1)
-p.then((res) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve(res+1)
-    }, 1000);
-  }).then((res) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        resolve(res+1)
-      }, 1000);
-    })
-  })
-}).then((res) => {
-  console.log(res)
-})
