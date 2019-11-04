@@ -1,13 +1,15 @@
-// axios.interceptors.request.use((config) => {
-//   console.log('我在dispatchRequest前做了些事情')
-//   return config
-// }, (err) => {
-//   return err
-// })
-// axios.interceptors.response.use((res) => {
-//   console.log('我在拿到了response后做了些处理')
-//   return res
-// })
+axios.interceptors.request.use((config) => {
+  console.log('我在dispatchRequest前做了些事情')
+  return config
+}, (err) => {
+  return err
+})
+axios.interceptors.response.use((res) => {
+  console.log('我在拿到了response后做了些处理')
+  return res
+},(err) => {
+  return err
+})
 // axios('http://localhost:3000/top/playlist/highquality?before=1503639064232&limit=3').then(res => {
 //   console.log('这是最后拿到的数据',res)
 // }).catch((err) => {

@@ -77,12 +77,13 @@ return (function (modules) { // 自执行函数，webpack啟動函數
     function createInstance(defaultConfig) {
       var context = new Axios(defaultConfig); // 創建一個Axios實例叫context
       var instance = bind(Axios.prototype.request, context); // instance指向Axios.prototype.request，this指向Axios實例
+      console.log(Reflect.ownKeys(instance))
       // 把 Axios原型上的方法擴展到 instance 對象上，私有化 get post put等這些原型方法，並指定了this為context
       utils.extend(instance, Axios.prototype, context);
       // 把 Axios實例上的自身屬性和方法擴展到instance上
       utils.extend(instance, context);
       // 這樣 instance 指向 Axios.prototype.request，它可以直接調用Axios原型上的方法，也可以是它直接作為原型上的request方法接受參數執行，也可以調用Axios實例上的方法，this都指向Axios實例
-      
+      console.log(Reflect.ownKeys(instance))
       return instance;
     }
 
@@ -90,6 +91,7 @@ return (function (modules) { // 自执行函数，webpack啟動函數
     var axios = createInstance(defaults);
     // 暴露 Axios 類 實現類的繼承
     axios.Axios = Axios;
+    console.log(Reflect.ownKeys(axios))
 
     // 暴露用於創建新實例的工廠方法
     axios.create = function create(instanceConfig) {
@@ -106,7 +108,6 @@ return (function (modules) { // 自执行函数，webpack啟動函數
       return Promise.all(promises);
     };
     axios.spread = __webpack_require__(25);
-3
     
     module.exports = axios;
     // 導出的axios是一個函數
