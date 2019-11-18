@@ -15,6 +15,10 @@ Axios 不是一种新的技术，是一个基于 promise 的 HTTP 库，本质�
 - 自动转换 JSON 数据
 - 客户端支持防御 XSRF
 
+它的流程大致如下：
+
+![avatar](/pics/process.png)
+
 ## **axios** 到底是什么
 
 `axios` 是整个 Axios 库对外暴露的 API，axios 定义在入口文件 axios.js ，我们看看它到底是什么：
@@ -48,7 +52,7 @@ function bind(fn, thisArg) {
 
 bind 函数接收 Axios.prototype.request，它是一个函数，还接收 context，一个Axios实例，bind 执行返回一个新的函数 wrap，并赋给了 instance，所以 instance 指向了 wrap 函数，又因为 createInstance 函数执行返回 instance 赋给了 axios，所以 axios 指向了 wrap 函数。
 
-可见 wrap 函数执行，会返回 Axios.prototype.request.apply(context, args) 的执行结果，即执行 Axios.prototype.request 时函数中的 this 指向了 context。可见这和原生 _bind_ 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
+wrap 函数执行，会返回 Axios.prototype.request.apply(context, args) 的执行结果，即执行 Axios.prototype.request 时函数中的 this 指向了 context。可见这和原生 _bind_ 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
