@@ -11,80 +11,43 @@
 })(this, function () {
   return /******/ (function (modules) { // webpackBootstrap
     /******/ // The module cache
-    /******/
     var installedModules = {};
-    /******/
     /******/ // The require function
-    /******/
     function __webpack_require__(moduleId) {
-      /******/
       /******/ // Check if module is in cache
-      /******/
       if (installedModules[moduleId])
-        /******/
         return installedModules[moduleId].exports;
-      /******/
       /******/ // Create a new module (and put it into the cache)
-      /******/
       var module = installedModules[moduleId] = {
-        /******/
         exports: {},
-        /******/
         id: moduleId,
-        /******/
         loaded: false
-        /******/
       };
-      /******/
       /******/ // Execute the module function
-      /******/
       modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-      /******/
       /******/ // Flag the module as loaded
-      /******/
       module.loaded = true;
-      /******/
       /******/ // Return the exports of the module
-      /******/
       return module.exports;
-      /******/
     }
-    /******/
-    /******/
     /******/ // expose the modules object (__webpack_modules__)
-    /******/
     __webpack_require__.m = modules;
-    /******/
     /******/ // expose the module cache
-    /******/
     __webpack_require__.c = installedModules;
-    /******/
     /******/ // __webpack_public_path__
-    /******/
     __webpack_require__.p = "";
-    /******/
     /******/ // Load entry module and return exports
-    /******/
     return __webpack_require__(0);
-    /******/
   })
-  /************************************************************************/
-  /******/
   ([
     /* 0 */
-    /***/
     (function (module, exports, __webpack_require__) {
 
       module.exports = __webpack_require__(1);
-
-      /***/
     }),
     /* 1 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
       var bind = __webpack_require__(3);
       var Axios = __webpack_require__(5);
@@ -120,69 +83,48 @@
       axios.Cancel = __webpack_require__(23);
       axios.CancelToken = __webpack_require__(24);
       axios.isCancel = __webpack_require__(10);
-
       // Expose all/spread
       axios.all = function all(promises) {
         return Promise.all(promises);
       };
       axios.spread = __webpack_require__(25);
-
       module.exports = axios;
-
       // Allow use of default import syntax in TypeScript
       module.exports.default = axios;
-
-
-      /***/
     }),
     /* 2 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var bind = __webpack_require__(3);
       var isBuffer = __webpack_require__(4);
-
-      /*global toString:true*/
-
       // utils is a library of generic helper functions non-specific to axios
-
       var toString = Object.prototype.toString;
-
       /**
        * Determine if a value is an Array
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is an Array, otherwise false
        */
       function isArray(val) {
         return toString.call(val) === '[object Array]';
       }
-
       /**
        * Determine if a value is an ArrayBuffer
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is an ArrayBuffer, otherwise false
        */
       function isArrayBuffer(val) {
         return toString.call(val) === '[object ArrayBuffer]';
       }
-
       /**
        * Determine if a value is a FormData
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is an FormData, otherwise false
        */
       function isFormData(val) {
         return (typeof FormData !== 'undefined') && (val instanceof FormData);
       }
-
       /**
        * Determine if a value is a view on an ArrayBuffer
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a view on an ArrayBuffer, otherwise false
        */
@@ -195,10 +137,8 @@
         }
         return result;
       }
-
       /**
        * Determine if a value is a String
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a String, otherwise false
        */
@@ -208,74 +148,60 @@
 
       /**
        * Determine if a value is a Number
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a Number, otherwise false
        */
       function isNumber(val) {
         return typeof val === 'number';
       }
-
       /**
        * Determine if a value is undefined
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if the value is undefined, otherwise false
        */
       function isUndefined(val) {
         return typeof val === 'undefined';
       }
-
       /**
        * Determine if a value is an Object
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is an Object, otherwise false
        */
       function isObject(val) {
         return val !== null && typeof val === 'object';
       }
-
       /**
        * Determine if a value is a Date
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a Date, otherwise false
        */
       function isDate(val) {
         return toString.call(val) === '[object Date]';
       }
-
       /**
        * Determine if a value is a File
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a File, otherwise false
        */
       function isFile(val) {
         return toString.call(val) === '[object File]';
       }
-
       /**
        * Determine if a value is a Blob
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a Blob, otherwise false
        */
       function isBlob(val) {
         return toString.call(val) === '[object Blob]';
       }
-
       /**
        * Determine if a value is a Function
-       *
        * @param {Object} val The value to test
        * @returns {boolean} True if value is a Function, otherwise false
        */
       function isFunction(val) {
         return toString.call(val) === '[object Function]';
       }
-
       /**
        * Determine if a value is a Stream
        *
@@ -285,7 +211,6 @@
       function isStream(val) {
         return isObject(val) && isFunction(val.pipe);
       }
-
       /**
        * Determine if a value is a URLSearchParams object
        *
@@ -295,7 +220,6 @@
       function isURLSearchParams(val) {
         return typeof URLSearchParams !== 'undefined' && val instanceof URLSearchParams;
       }
-
       /**
        * Trim excess whitespace off the beginning and end of a string
        *
@@ -305,7 +229,6 @@
       function trim(str) {
         return str.replace(/^\s*/, '').replace(/\s*$/, '');
       }
-
       /**
        * Determine if we're running in a standard browser environment
        *
@@ -332,16 +255,12 @@
           typeof document !== 'undefined'
         );
       }
-
       /**
        * Iterate over an Array or an Object invoking a function for each item.
-       *
        * If `obj` is an Array callback will be called passing
        * the value, index, and complete array for each item.
-       *
        * If 'obj' is an Object callback will be called passing
        * the value, key, and complete object for each property.
-       *
        * @param {Object|Array} obj The object to iterate
        * @param {Function} fn The callback to invoke for each item
        */
@@ -391,7 +310,6 @@
        */
       function merge( /* obj1, obj2, obj3, ... */ ) {
         var result = {};
-
         function assignValue(val, key) {
           if (typeof result[key] === 'object' && typeof val === 'object') {
             result[key] = merge(result[key], val);
@@ -399,13 +317,11 @@
             result[key] = val;
           }
         }
-
         for (var i = 0, l = arguments.length; i < l; i++) {
           forEach(arguments[i], assignValue);
         }
         return result;
       }
-
       /**
        * Function equal to merge with the difference being that no reference
        * to original objects is kept.
@@ -416,7 +332,6 @@
        */
       function deepMerge( /* obj1, obj2, obj3, ... */ ) {
         var result = {};
-
         function assignValue(val, key) {
           if (typeof result[key] === 'object' && typeof val === 'object') {
             result[key] = deepMerge(result[key], val);
@@ -426,7 +341,6 @@
             result[key] = val;
           }
         }
-
         for (var i = 0, l = arguments.length; i < l; i++) {
           forEach(arguments[i], assignValue);
         }
@@ -435,7 +349,6 @@
 
       /**
        * Extends object a by mutably adding to it the properties of object b.
-       *
        * @param {Object} a The object to be extended
        * @param {Object} b The object to copy properties from
        * @param {Object} thisArg The object to bind function to
@@ -475,16 +388,10 @@
         extend: extend,
         trim: trim
       };
-
-
-      /***/
     }),
     /* 3 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       module.exports = function bind(fn, thisArg) {
         return function wrap() {
           var args = new Array(arguments.length);
@@ -494,41 +401,28 @@
           return fn.apply(thisArg, args);
         };
       };
-
-
-      /***/
     }),
     /* 4 */
-    /***/
     (function (module, exports) {
-
       /*!
        * Determine if an object is a Buffer
        *
        * @author   Feross Aboukhadijeh <https://feross.org>
        * @license  MIT
        */
-
       module.exports = function isBuffer(obj) {
         return obj != null && obj.constructor != null &&
           typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
       }
-
-
-      /***/
     }),
     /* 5 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
       var buildURL = __webpack_require__(6);
       var InterceptorManager = __webpack_require__(7);
       var dispatchRequest = __webpack_require__(8);
       var mergeConfig = __webpack_require__(22);
-
       /**
        * Create a new instance of Axios
        *
@@ -541,7 +435,6 @@
           response: new InterceptorManager()
         };
       }
-
       /**
        * Dispatch a request
        *
@@ -556,18 +449,14 @@
         } else {
           config = config || {};
         }
-
         config = mergeConfig(this.defaults, config);
         config.method = config.method ? config.method.toLowerCase() : 'get';
-
         // Hook up interceptors middleware
         var chain = [dispatchRequest, undefined];
         var promise = Promise.resolve(config);
-
         this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
           chain.unshift(interceptor.fulfilled, interceptor.rejected);
         });
-
         this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
           chain.push(interceptor.fulfilled, interceptor.rejected);
         });
@@ -583,7 +472,6 @@
         config = mergeConfig(this.defaults, config);
         return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
       };
-
       // Provide aliases for supported request methods
       utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
         /*eslint func-names:0*/
@@ -594,7 +482,6 @@
           }));
         };
       });
-
       utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
         /*eslint func-names:0*/
         Axios.prototype[method] = function (url, data, config) {
@@ -605,20 +492,12 @@
           }));
         };
       });
-
       module.exports = Axios;
-
-
-      /***/
     }),
     /* 6 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       function encode(val) {
         return encodeURIComponent(val).
         replace(/%40/gi, '@').
@@ -629,7 +508,6 @@
         replace(/%5B/gi, '[').
         replace(/%5D/gi, ']');
       }
-
       /**
        * Build a URL by appending params to the end
        *
@@ -642,7 +520,6 @@
         if (!params) {
           return url;
         }
-
         var serializedParams;
         if (paramsSerializer) {
           serializedParams = paramsSerializer(params);
@@ -650,18 +527,15 @@
           serializedParams = params.toString();
         } else {
           var parts = [];
-
           utils.forEach(params, function serialize(val, key) {
             if (val === null || typeof val === 'undefined') {
               return;
             }
-
             if (utils.isArray(val)) {
               key = key + '[]';
             } else {
               val = [val];
             }
-
             utils.forEach(val, function parseValue(v) {
               if (utils.isDate(v)) {
                 v = v.toISOString();
@@ -671,7 +545,6 @@
               parts.push(encode(key) + '=' + encode(v));
             });
           });
-
           serializedParams = parts.join('&');
         }
 
@@ -680,28 +553,18 @@
           if (hashmarkIndex !== -1) {
             url = url.slice(0, hashmarkIndex);
           }
-
           url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
         }
-
         return url;
       };
-
-
-      /***/
     }),
     /* 7 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       function InterceptorManager() {
         this.handlers = [];
       }
-
       /**
        * Add a new interceptor to the stack
        *
@@ -717,10 +580,8 @@
         });
         return this.handlers.length - 1;
       };
-
       /**
        * Remove an interceptor from the stack
-       *
        * @param {Number} id The ID that was returned by `use`
        */
       InterceptorManager.prototype.eject = function eject(id) {
@@ -728,13 +589,10 @@
           this.handlers[id] = null;
         }
       };
-
       /**
        * Iterate over all the registered interceptors
-       *
        * This method is particularly useful for skipping over any
        * interceptors that may have become `null` calling `eject`.
-       *
        * @param {Function} fn The function to call for each interceptor
        */
       InterceptorManager.prototype.forEach = function forEach(fn) {
@@ -744,25 +602,17 @@
           }
         });
       };
-
       module.exports = InterceptorManager;
-
-
-      /***/
     }),
     /* 8 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
       var transformData = __webpack_require__(9);
       var isCancel = __webpack_require__(10);
       var defaults = __webpack_require__(11);
       var isAbsoluteURL = __webpack_require__(20);
       var combineURLs = __webpack_require__(21);
-
       /**
        * Throws a `Cancel` if cancellation has been requested.
        */
@@ -771,7 +621,6 @@
           config.cancelToken.throwIfRequested();
         }
       }
-
       /**
        * Dispatch a request to the server using the configured adapter.
        *
@@ -780,53 +629,43 @@
        */
       module.exports = function dispatchRequest(config) {
         throwIfCancellationRequested(config);
-
         // Support baseURL config
         if (config.baseURL && !isAbsoluteURL(config.url)) {
           config.url = combineURLs(config.baseURL, config.url);
         }
-
         // Ensure headers exist
         config.headers = config.headers || {};
-
         // Transform request data
         config.data = transformData(
           config.data,
           config.headers,
           config.transformRequest
         );
-
         // Flatten headers
         config.headers = utils.merge(
           config.headers.common || {},
           config.headers[config.method] || {},
           config.headers || {}
         );
-
         utils.forEach(
           ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
           function cleanHeaderConfig(method) {
             delete config.headers[method];
           }
         );
-
         var adapter = config.adapter || defaults.adapter;
-
         return adapter(config).then(function onAdapterResolution(response) {
           throwIfCancellationRequested(config);
-
           // Transform response data
           response.data = transformData(
             response.data,
             response.headers,
             config.transformResponse
           );
-
           return response;
         }, function onAdapterRejection(reason) {
           if (!isCancel(reason)) {
             throwIfCancellationRequested(config);
-
             // Transform response data
             if (reason && reason.response) {
               reason.response.data = transformData(
@@ -836,25 +675,16 @@
               );
             }
           }
-
           return Promise.reject(reason);
         });
       };
-
-
-      /***/
     }),
     /* 9 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       /**
        * Transform the data for a request or a response
-       *
        * @param {Object|String} data The data to be transformed
        * @param {Array} headers The headers for the request or response
        * @param {Array|Function} fns A single function or Array of functions
@@ -865,45 +695,29 @@
         utils.forEach(fns, function transform(fn) {
           data = fn(data, headers);
         });
-
         return data;
       };
-
-
-      /***/
     }),
     /* 10 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       module.exports = function isCancel(value) {
         return !!(value && value.__CANCEL__);
       };
-
-
-      /***/
     }),
     /* 11 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
       var normalizeHeaderName = __webpack_require__(12);
-
       var DEFAULT_CONTENT_TYPE = {
         'Content-Type': 'application/x-www-form-urlencoded'
       };
-
       function setContentTypeIfUnset(headers, value) {
         if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
           headers['Content-Type'] = value;
         }
       }
-
       function getDefaultAdapter() {
         var adapter;
         // Only Node.JS has a process variable that is of [[Class]] process
@@ -956,50 +770,35 @@
           }
           return data;
         }],
-
         /**
          * A timeout in milliseconds to abort a request. If set to 0 (default) a
          * timeout is not created.
          */
         timeout: 0,
-
         xsrfCookieName: 'XSRF-TOKEN',
         xsrfHeaderName: 'X-XSRF-TOKEN',
-
         maxContentLength: -1,
-
         validateStatus: function validateStatus(status) {
           return status >= 200 && status < 300;
         }
       };
-
       defaults.headers = {
         common: {
           'Accept': 'application/json, text/plain, */*'
         }
       };
-
       utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
         defaults.headers[method] = {};
       });
-
       utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
         defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
       });
-
       module.exports = defaults;
-
-
-      /***/
     }),
     /* 12 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       module.exports = function normalizeHeaderName(headers, normalizedName) {
         utils.forEach(headers, function processHeader(value, name) {
           if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
@@ -1008,52 +807,38 @@
           }
         });
       };
-
-
-      /***/
     }),
     /* 13 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
       var settle = __webpack_require__(14);
       var buildURL = __webpack_require__(6);
       var parseHeaders = __webpack_require__(17);
       var isURLSameOrigin = __webpack_require__(18);
       var createError = __webpack_require__(15);
-
       module.exports = function xhrAdapter(config) {
         return new Promise(function dispatchXhrRequest(resolve, reject) {
           var requestData = config.data;
           var requestHeaders = config.headers;
-
           if (utils.isFormData(requestData)) {
             delete requestHeaders['Content-Type']; // Let the browser set it
           }
-
           var request = new XMLHttpRequest();
-
           // HTTP basic authentication
           if (config.auth) {
             var username = config.auth.username || '';
             var password = config.auth.password || '';
             requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
           }
-
           request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
-
           // Set the request timeout in MS
           request.timeout = config.timeout;
-
           // Listen for ready state
           request.onreadystatechange = function handleLoad() {
             if (!request || request.readyState !== 4) {
               return;
             }
-
             // The request errored out and we didn't get a response, this will be
             // handled by onerror instead
             // With one exception: request that using file: protocol, most browsers
@@ -1061,7 +846,6 @@
             if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
               return;
             }
-
             // Prepare the response
             var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
             var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
@@ -1073,9 +857,7 @@
               config: config,
               request: request
             };
-
             settle(resolve, reject, response);
-
             // Clean up request
             request = null;
           };
@@ -1085,9 +867,7 @@
             if (!request) {
               return;
             }
-
             reject(createError('Request aborted', config, 'ECONNABORTED', request));
-
             // Clean up request
             request = null;
           };
@@ -1097,7 +877,6 @@
             // Real errors are hidden from us by the browser
             // onerror should only fire if it's a network error
             reject(createError('Network Error', config, null, request));
-
             // Clean up request
             request = null;
           };
@@ -1106,7 +885,6 @@
           request.ontimeout = function handleTimeout() {
             reject(createError('timeout of ' + config.timeout + 'ms exceeded', config, 'ECONNABORTED',
               request));
-
             // Clean up request
             request = null;
           };
@@ -1116,12 +894,10 @@
           // Specifically not if we're in a web worker, or react-native.
           if (utils.isStandardBrowserEnv()) {
             var cookies = __webpack_require__(19);
-
             // Add xsrf header
             var xsrfValue = (config.withCredentials || isURLSameOrigin(config.url)) && config.xsrfCookieName ?
               cookies.read(config.xsrfCookieName) :
               undefined;
-
             if (xsrfValue) {
               requestHeaders[config.xsrfHeaderName] = xsrfValue;
             }
@@ -1144,7 +920,6 @@
           if (config.withCredentials) {
             request.withCredentials = true;
           }
-
           // Add responseType to request if needed
           if (config.responseType) {
             try {
@@ -1162,49 +937,36 @@
           if (typeof config.onDownloadProgress === 'function') {
             request.addEventListener('progress', config.onDownloadProgress);
           }
-
           // Not all browsers support upload events
           if (typeof config.onUploadProgress === 'function' && request.upload) {
             request.upload.addEventListener('progress', config.onUploadProgress);
           }
-
           if (config.cancelToken) {
             // Handle cancellation
             config.cancelToken.promise.then(function onCanceled(cancel) {
               if (!request) {
                 return;
               }
-
               request.abort();
               reject(cancel);
               // Clean up request
               request = null;
             });
           }
-
           if (requestData === undefined) {
             requestData = null;
           }
-
           // Send the request
           request.send(requestData);
         });
       };
-
-
-      /***/
     }),
     /* 14 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var createError = __webpack_require__(15);
-
       /**
        * Resolve or reject a Promise based on response status.
-       *
        * @param {Function} resolve A function that resolves the promise.
        * @param {Function} reject A function that rejects the promise.
        * @param {object} response The response.
@@ -1223,18 +985,11 @@
           ));
         }
       };
-
-
-      /***/
     }),
     /* 15 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var enhanceError = __webpack_require__(16);
-
       /**
        * Create an Error with the specified message, config, error code, request and response.
        *
@@ -1249,16 +1004,10 @@
         var error = new Error(message);
         return enhanceError(error, config, code, request, response);
       };
-
-
-      /***/
     }),
     /* 16 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       /**
        * Update an Error with the specified config, error code, and response.
        *
@@ -1274,11 +1023,9 @@
         if (code) {
           error.code = code;
         }
-
         error.request = request;
         error.response = response;
         error.isAxiosError = true;
-
         error.toJSON = function () {
           return {
             // Standard
@@ -1299,18 +1046,11 @@
         };
         return error;
       };
-
-
-      /***/
     }),
     /* 17 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       // Headers whose duplicates are ignored by node
       // c.f. https://nodejs.org/api/http.html#http_message_headers
       var ignoreDuplicateOf = [
@@ -1322,14 +1062,12 @@
 
       /**
        * Parse headers into an object
-       *
        * ```
        * Date: Wed, 27 Aug 2014 08:58:49 GMT
        * Content-Type: application/json
        * Connection: keep-alive
        * Transfer-Encoding: chunked
        * ```
-       *
        * @param {String} headers Headers needing to be parsed
        * @returns {Object} Headers parsed into an object
        */
@@ -1338,16 +1076,13 @@
         var key;
         var val;
         var i;
-
         if (!headers) {
           return parsed;
         }
-
         utils.forEach(headers.split('\n'), function parser(line) {
           i = line.indexOf(':');
           key = utils.trim(line.substr(0, i)).toLowerCase();
           val = utils.trim(line.substr(i + 1));
-
           if (key) {
             if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
               return;
@@ -1359,48 +1094,34 @@
             }
           }
         });
-
         return parsed;
       };
-
-
-      /***/
     }),
     /* 18 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       module.exports = (
         utils.isStandardBrowserEnv() ?
-
         // Standard browser envs have full support of the APIs needed to test
         // whether the request URL is of the same origin as current location.
         (function standardBrowserEnv() {
           var msie = /(msie|trident)/i.test(navigator.userAgent);
           var urlParsingNode = document.createElement('a');
           var originURL;
-
           /**
            * Parse a URL to discover it's components
-           *
            * @param {String} url The URL to be parsed
            * @returns {Object}
            */
           function resolveURL(url) {
             var href = url;
-
             if (msie) {
               // IE needs attribute set twice to normalize properties
               urlParsingNode.setAttribute('href', href);
               href = urlParsingNode.href;
             }
-
             urlParsingNode.setAttribute('href', href);
-
             // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
             return {
               href: urlParsingNode.href,
@@ -1414,9 +1135,7 @@
                 urlParsingNode.pathname : '/' + urlParsingNode.pathname
             };
           }
-
           originURL = resolveURL(window.location.href);
-
           /**
            * Determine if a URL shares the same origin as the current location
            *
@@ -1437,21 +1156,13 @@
           };
         })()
       );
-
-
-      /***/
     }),
     /* 19 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       module.exports = (
         utils.isStandardBrowserEnv() ?
-
         // Standard browser envs support document.cookie
         (function standardBrowserEnv() {
           return {
@@ -1462,27 +1173,21 @@
               if (utils.isNumber(expires)) {
                 cookie.push('expires=' + new Date(expires).toGMTString());
               }
-
               if (utils.isString(path)) {
                 cookie.push('path=' + path);
               }
-
               if (utils.isString(domain)) {
                 cookie.push('domain=' + domain);
               }
-
               if (secure === true) {
                 cookie.push('secure');
               }
-
               document.cookie = cookie.join('; ');
             },
-
             read: function read(name) {
               var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
               return (match ? decodeURIComponent(match[3]) : null);
             },
-
             remove: function remove(name) {
               this.write(name, '', Date.now() - 86400000);
             }
@@ -1500,16 +1205,10 @@
           };
         })()
       );
-
-
-      /***/
     }),
     /* 20 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       /**
        * Determines whether the specified URL is absolute
        *
@@ -1522,19 +1221,11 @@
         // by any combination of letters, digits, plus, period, or hyphen.
         return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
       };
-
-
-      /***/
     }),
-    /* 21 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       /**
        * Creates a new URL by combining the specified URLs
-       *
        * @param {string} baseURL The base URL
        * @param {string} relativeURL The relative URL
        * @returns {string} The combined URL
@@ -1544,22 +1235,14 @@
           baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '') :
           baseURL;
       };
-
-
-      /***/
     }),
     /* 22 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var utils = __webpack_require__(2);
-
       /**
        * Config-specific merge-function which creates a new config-object
        * by merging two configuration objects together.
-       *
        * @param {Object} config1
        * @param {Object} config2
        * @returns {Object} New object resulting from merging config2 to config1
@@ -1568,13 +1251,11 @@
         // eslint-disable-next-line no-param-reassign
         config2 = config2 || {};
         var config = {};
-
         utils.forEach(['url', 'method', 'params', 'data'], function valueFromConfig2(prop) {
           if (typeof config2[prop] !== 'undefined') {
             config[prop] = config2[prop];
           }
         });
-
         utils.forEach(['headers', 'auth', 'proxy'], function mergeDeepProperties(prop) {
           if (utils.isObject(config2[prop])) {
             config[prop] = utils.deepMerge(config1[prop], config2[prop]);
@@ -1600,51 +1281,32 @@
             config[prop] = config1[prop];
           }
         });
-
         return config;
       };
-
-
-      /***/
     }),
     /* 23 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       /**
        * A `Cancel` is an object that is thrown when an operation is canceled.
-       *
        * @class
        * @param {string=} message The message.
        */
       function Cancel(message) {
         this.message = message;
       }
-
       Cancel.prototype.toString = function toString() {
         return 'Cancel' + (this.message ? ': ' + this.message : '');
       };
-
       Cancel.prototype.__CANCEL__ = true;
-
       module.exports = Cancel;
-
-
-      /***/
     }),
     /* 24 */
-    /***/
     (function (module, exports, __webpack_require__) {
-
       'use strict';
-
       var Cancel = __webpack_require__(23);
-
       /**
        * A `CancelToken` is an object that can be used to request cancellation of an operation.
-       *
        * @class
        * @param {Function} executor The executor function.
        */
@@ -1652,24 +1314,20 @@
         if (typeof executor !== 'function') {
           throw new TypeError('executor must be a function.');
         }
-
         var resolvePromise;
         this.promise = new Promise(function promiseExecutor(resolve) {
           resolvePromise = resolve;
         });
-
         var token = this;
         executor(function cancel(message) {
           if (token.reason) {
             // Cancellation has already been requested
             return;
           }
-
           token.reason = new Cancel(message);
           resolvePromise(token.reason);
         });
       }
-
       /**
        * Throws a `Cancel` if cancellation has been requested.
        */
@@ -1693,35 +1351,23 @@
           cancel: cancel
         };
       };
-
       module.exports = CancelToken;
-
-
-      /***/
     }),
     /* 25 */
-    /***/
     (function (module, exports) {
-
       'use strict';
-
       /**
        * Syntactic sugar for invoking a function and expanding an array for arguments.
-       *
        * Common use case would be to use `Function.prototype.apply`.
-       *
        *  ```js
        *  function f(x, y, z) {}
        *  var args = [1, 2, 3];
        *  f.apply(null, args);
        *  ```
-       *
        * With `spread` this example can be re-written.
-       *
        *  ```js
        *  spread(function(x, y, z) {})([1, 2, 3]);
        *  ```
-       *
        * @param {Function} callback
        * @returns {Function}
        */
@@ -1730,11 +1376,7 @@
           return callback.apply(null, arr);
         };
       };
-
-
-      /***/
     })
-    /******/
   ])
 });;
 //# sourceMappingURL=axios.map
