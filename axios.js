@@ -733,7 +733,6 @@
 
       var defaults = {
         adapter: getDefaultAdapter(),
-
         transformRequest: [function transformRequest(data, headers) {
           normalizeHeaderName(headers, 'Accept');
           normalizeHeaderName(headers, 'Content-Type');
