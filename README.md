@@ -2,7 +2,7 @@
 
 ## Axios是什么
 
-Axios 不是一种新的技术，是一个基于 promise 的 HTTP 库，本质上是对原生 XHR 的封装，只不过它是基于 Promise 实现的版本。
+Axios 不是一种新的技术，本质上是对原生 XHR 的封装，只不过它是基于 Promise 实现的版本。
 
 有以下特点：
 
@@ -51,20 +51,18 @@ module.exports = axios;
 function createInstance(defaultConfig) {
   var context = new Axios(defaultConfig);
   var instance = bind(Axios.prototype.request, context);
-  // Copy axios.prototype to instance
   utils.extend(instance, Axios.prototype, context);
-  // Copy context to instance
   utils.extend(instance, context);
 
   return instance;
 }
 var axios = createInstance(defaults);
 ```
-createInstance 函数执行的返回值，赋给定义的axios变量
+createInstance 函数的返回值，赋给axios变量
 
 在 createInstance 函数中，首先创建了一个 Axios 的实例，赋给 context，再执行 bind 函数，返回值赋给 instance，然后两次调用 utils.extend 函数对 instance 做进行扩展，最后 createInstance 函数返回 instance。
 
-可见，axios 实际指向 bind 函数的执行返回值。我们看看 bind 函数的实现：
+可见，axios 实际指向 bind 函数的执行结果。我们看看 bind 函数的实现：
 
 ```js
 module.exports = function bind(fn, thisArg) {
@@ -82,35 +80,15 @@ module.exports = function bind(fn, thisArg) {
 
 bind 函数执行，接收 Axios.prototype.request 方法，和 context 这个 Axios 实例，bind 执行返回一个新的函数 wrap，赋给了 instance，所以 instance 指向 wrap 函数，又因为 axios 指向 bind 函数的执行结果，所以 axios 也指向 wrap 函数。
 
-如果 wrap 函数执行，则会返回 Axios.prototype.request.apply(context, args) 的执行结果，即执行 Axios.prototype.request 时，this 指向了 context，接收了 wrap 执行时接收的参数数组。可见这里的 bind 和原生 _bind_ 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
+如果 wrap 函数执行，则会返回 Axios.prototype.request.apply(context, args) 的执行结果，即执行 Axios.prototype.request 但 函数中的 this 指向了 context，接收 wrap 执行时接收的参数数组。可见这里的 bind 和原生 _bind_ 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
 utils.extend(instance, context);
 ```
 
-接下来两次调用 utils.extend 函数，extend函数的实现用到了forEach函数：
-
+接下来两次调用 utils.extend 函数，extend 函数如下所示：
 ```js
-function forEach(obj, fn) {
-  if (obj === null || typeof obj === 'undefined') return;
-  // 如果传入的obj为null或undefined，直接返回
-  if (typeof obj !== 'object') {
-    obj = [obj]; // 如果obj不是对象，将它放入一个数组
-  }
-  if (isArray(obj)) { // 如果obj是数组，遍历obj，调用回调fn
-    for (var i = 0, l = obj.length; i < l; i++) {
-      fn.call(null, obj[i], i, obj);
-    }
-  } else { // 如果obj是对象，遍历obj的自有属性，调用fn回调
-    for (var key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        fn.call(null, obj[key], key, obj);
-      }
-    }
-  }
-}
-
 function extend(a, b, thisArg) {
   forEach(b, function (val, key) {
     if (thisArg && typeof val === 'function') {
@@ -122,10 +100,30 @@ function extend(a, b, thisArg) {
   return a;
 }
 ```
+extend 函数中的 forEach 函数也是辅助函数之一：
+```js
+function forEach(obj, fn) {
+  if (obj === null || typeof obj === 'undefined') return;
+  if (typeof obj !== 'object') {
+    obj = [obj];
+  }
+  if (isArray(obj)) {
+    for (var i = 0, l = obj.length; i < l; i++) {
+      fn.call(null, obj[i], i, obj);
+    }
+  } else {
+    for (var key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        fn.call(null, obj[key], key, obj);
+      }
+    }
+  }
+}
+```
 
-forEach 函数也是辅助函数之一，它的分析见注释。
+forEach 函数中，如果接收的 obj 是 null 或 undefined，则直接返回，因为它不能被遍历。如果 obj 不是对象，则将它放入一个数组中包裹起来，然后判断如果 obj 是数组的话，遍历数组，调用传入的回调函数fn，传入当前遍历项和索引和被遍历的数组。如果 obj 是对象，则遍历 obj 的自有属性，调用 fn ，传入当前遍历的属性值和属性和被遍历的对象。
 
-extend 内部，调用 forEach 函数遍历对象 b 的自有属性：如果是方法，就调用 bind 函数将该方法的 this 指定为 thisArg，再将改绑 this 后的方法添加到对象 a 中，如果是普通属性，直接将它添加到对象 a
+因此在 extend 函数中，是调用 forEach 函数遍历对象 b 的自有属性：如果是方法，就调用 bind 函数将该方法的 this 指定为 thisArg，再将改绑 this 后的方法添加到对象 a 中，如果是普通属性，直接将它添加到对象 a
 
 所以两次调用 extend 是将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 对象上，如果拷贝的是方法，它里面的 this ，统一指向 Axios 实例 context 。由于 instance 指向 wrap 函数，所以实际是给 wrap 函数添加了这些属性和方法。
 
@@ -160,7 +158,7 @@ interceptors 属性，属性值为一个包含 request 和 response 两个属性
 
 ![avatar](/pics/Axios实例的属性.png)
 
-接下来还会往 Axios.prototype 挂载名为 delete、get、head、options、post、put、patch 等方法：
+接下来还会往 Axios.prototype 上添加 delete、get、head、options、post、put、patch 方法：
 
 ```js
 utils.forEach(['delete', 'get', 'head', 'options'], function (method) {
