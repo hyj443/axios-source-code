@@ -28,8 +28,6 @@ function generateConfig(name) {
   var config = {
     entry: './index.js',
   };
-  // ...
-  return config;
 }
 ```
 
@@ -62,7 +60,7 @@ createInstance 函数的返回值赋给了 axios
 
 在 createInstance 函数中，首先创建了一个 Axios 的实例，再调用 bind 函数，返回值赋给 instance，再两次调用 utils.extend 函数对 instance 进行扩展，最后函数返回出 instance。
 
-可见，axios 实际指向 bind 函数的执行结果。我们看看 bind 函数的实现：
+可见，axios 实际指向 bind 函数的执行结果。我们看看 bind 函数：
 
 ```js
 module.exports = function bind(fn, thisArg) {
@@ -78,9 +76,9 @@ module.exports = function bind(fn, thisArg) {
 
 结合`var instance = bind(Axios.prototype.request, context)`来看：
 
-bind 函数接收 request 这个原型方法，和 Axios 实例 context，执行返回一个新的函数 wrap，并赋给 instance，因此 instance 指向 wrap 函数，又因为 axios 指向 bind 函数的执行结果，所以 axios 指向 wrap 函数。
+bind 函数接收 request 原型方法，和 Axios 实例 context，执行返回新的函数 wrap，并赋给 instance，因此 instance 指向 wrap 函数，又因为 axios 指向 bind 函数的执行结果，所以 axios 指向 wrap 函数。
 
-如果 wrap 函数执行，则会返回原型方法 request 的执行结果，其中执行时的 this 指向 context，并接收 wrap 执行时接收的参数数组 args。可见该 bind 函数和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
+如果 wrap 函数执行，则会返回 request 方法的执行结果，request 执行时的 this 指向 context，并接收 wrap 执行时接收的参数数组 args。可见该 bind 函数和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
@@ -104,7 +102,9 @@ function extend(a, b, thisArg) {
 extend 函数中的 forEach 函数也是辅助函数之一，它的作用就是遍历对象或数组，执行传入的回调函数：
 ```js
 function forEach(obj, fn) {
-  if (obj === null || typeof obj === 'undefined') return;
+  if (obj === null || typeof obj === 'undefined') {
+    return;
+  }
   if (typeof obj !== 'object') {
     obj = [obj];
   }
@@ -122,9 +122,11 @@ function forEach(obj, fn) {
 }
 ```
 
-forEach 函数接收的 obj 如果是 null 或 undefined，不能被遍历而直接返回。如果 obj 不是对象，则将它放入一个数组中，然后判断如果 obj 是数组，遍历数组，调用传入的回调函数fn，传入当前遍历项和索引和被遍历的数组。如果 obj 是对象，则遍历 obj 的自有属性，调用 fn，传入当前遍历的属性值和属性和被遍历的对象。
+forEach 函数接收的 obj 如果是 null 或 undefined，直接返回。
 
-了解了 forEach 后，extend 函数就是通过调用 forEach 遍历对象 b 的自有属性，将键值对拷贝到对象 a 中，如果拷贝的是方法，则拷贝调用 bind 后的改绑了 this 为 thisArg 的方法。
+如果 obj 不是对象，则将它放入一个数组中。然后判断如果 obj 是数组，遍历数组，调用回调函数 fn，传入当前遍历项和索引和被遍历的数组。如果 obj 是对象，则遍历 obj 的自有属性，调用 fn，传入当前遍历的属性值和属性和被遍历的对象。
+
+因此，extend 函数就是通过调用 forEach 遍历对象 b 的自有属性，将键值对拷贝到对象 a 中，如果拷贝的是方法，则拷贝调用 bind 后的改绑了 this 为 thisArg 的方法。
 
 因此两次调用 extend 是将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 对象上，如果拷贝的是方法，它里面的 this 统一指向 context。由于 instance 指向 wrap 函数，所以实际是给 wrap 函数添加这些属性和方法。
 
@@ -144,7 +146,7 @@ function Axios(instanceConfig) {
   this.interceptors = {
     request: new InterceptorManager(),
     response: new InterceptorManager()
-  }
+  };
 }
 Axios.prototype.request = function (config) {
   // ....
@@ -154,14 +156,14 @@ Axios.prototype.getUri = function (config) {
 };
 ```
 
-Axios 的实例挂载了两个属性：一个是 defaults，保存了 Axios 接收的参数 instanceConfig。一个是 interceptors，属性值是一个包含 request 和 response 两个属性的对象，各自属性值均为 InterceptorManager 实例。
+Axios 的实例挂载了两个属性：defaults 保存 Axios 接收的配置对象；interceptors，属性值是一个包含 request 和 response 两个属性的对象，各自属性值均为 InterceptorManager 实例。
 
 ![avatar](/pics/Axios实例的属性.png)
 
 接下来还会往 Axios.prototype 上添加 delete、get、head 等方法：
 
 ```js
-utils.forEach(['delete', 'get', 'head', 'options'], function (method) {
+utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
   Axios.prototype[method] = function(url, config) {
     return this.request(utils.merge(config || {}, {
       method: method,
@@ -169,7 +171,8 @@ utils.forEach(['delete', 'get', 'head', 'options'], function (method) {
     }));
   };
 });
-utils.forEach(['post', 'put', 'patch'], function (method) {
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
   Axios.prototype[method] = function(url, data, config) {
     return this.request(utils.merge(config || {}, {
       method: method,
@@ -179,9 +182,11 @@ utils.forEach(['post', 'put', 'patch'], function (method) {
   };
 });
 ```
-前面提到过，Axios 原型上的属性和方法已经拷贝给 axios，所以 axios 可以直接调用Axios 原型上的这些方法，当然也包括 request。
+前面提到过，Axios 原型上的属性和方法已经拷贝给 axios，所以 axios 可以直接调用 Axios 原型上的这些方法。
 
-这些 Axios 原型方法，都实际执行 request 方法。这些方法接收的参数，会通过 utils.merge 函数合并为一个配置对象，传入 request 方法执行。
+这些 Axios 原型方法，都实际执行 request 方法。所接收的参数通过 utils.merge 函数合并为一个配置对象，传入 request 方法执行。
+
+注意到 delete, get, head, options 这四个方法请求时是不传 data 的，post, put, patch 在请求时是带 data 的。
 
 看看 merge 函数的实现：
 
@@ -201,9 +206,9 @@ function merge(/* obj1, obj2, obj3, ... */) {
   return result;
 }
 ```
-merge 函数首先创建一个空对象 result，然后遍历所有接收的参数(对象)，将对象的键值对添加到对象 result 中，如果新添加的属性 key 已经添加过，即存在于 result 中，则如果对应的属性值是对象，且新添加的属性值也是对象，则递归调用 merge 进行合并，merge 的返回值作为属性值覆盖原来的属性值。
+merge 函数首先创建一个空对象 result，然后逐个遍历所有接收的参数(对象)，将对象的键值对添加到 result 中，如果发现 key 已经添加过，则判断，如果对应的属性值是对象，且新添加的属性值也是对象，则递归调用 merge 进行合并，merge 的返回值覆盖原来的属性值。
 
-否则，不满足都是对象的话，出现重复的 key 的话，只需简单地将新的属性值覆盖上去就好。
+不满足都是对象的话，只需简单地将新的属性值覆盖上去就好。
 
 前面提到，axios 可以理解为改绑了 this 的 request 方法，所以 axios 可以直接传入配置对象执行：即 axios(config)。
 
@@ -256,9 +261,9 @@ var axios = createInstance(defaults);
 
 上面我们看到了 ./defaults 文件导出的默认配置对象，传入 createInstance 函数执行。
 
-在 createInstance 函数中，它传入 new Axios 执行，前面提到 Axios 构造函数会把接收的参数赋给实例的 defaults 属性，即 Axios 实例的 defaults 保存默认配置对象。
+在 createInstance 函数中，它传入 new Axios 执行，前面提到 Axios 构造函数会把接收的配置对象赋给实例的 defaults 属性，即 Axios 实例的 defaults 保存默认配置对象。
 
-看了默认的配置对象，那用户传入的自定义配置呢，我们知道，axios 发起请求的调用，都会实际调用 Axios.prototype.request 函数，它接收了用户传入的配置，我们看看 request 方法是怎么处理的：
+那用户传入的自定义配置呢？axios 发起请求的调用接收用户传入的配置，然后实际调用 Axios.prototype.request 函数，我们看看 request 方法是怎么处理的：
 
 ```js
 Axios.prototype.request = function request(config) {
@@ -281,27 +286,34 @@ Axios.prototype.request = function request(config) {
   // ....
 };
 ```
-如果传入 request 的第一个参数是字符串，就认为第二个参数传的是配置对象，将它赋给 config ，如果没传第二个参数，则 config 为一个空对象，把第一个参数接收的字符串赋给 config.url。
+如果传入 request 的第一个参数是字符串，就认为第二个参数传的是配置对象，赋给 config，如果没传第二个参数，则 config 为一个空对象，把第一个参数的字符串赋给 config.url。
 
-如果第一个参数不是字符串，则默认它传的是配置对象，直接把它赋给 config ，如果什么都没传，赋给 config 一个空对象。
+如果第一个参数不是字符串，则默认它传的是配置对象，直接把它赋给 config，如果什么都没传，赋给 config 一个空对象。
 
-接着调用 mergeConfig 函数，传入 this.defaults 和 config，this.defaults 保存的是默认的配置对象，这个函数的作用就是将默认配置对象和 config 合并，返回值赋给 config。
+接着调用 mergeConfig 函数将默认配置对象和 config 合并，返回值赋给 config。
 
-由此可知，用户不同方式的传参，在 request 函数中会被归一化为一个 config 对象
+由此可知，用户不同方式的传参，在 request 函数中会被整合到一个 config 对象
 
 合并之后，如果 config.method 存在，则将它转为小写，如果不存在，则如果默认配置中配置了 method，则将它小写化并赋给 config.method，如果默认配置也没有配置 method，则默认为 'get'
 
 我们大致看看 mergeConfig 的实现：
 
 ```js
-function mergeConfig(config1, config2 = {}) {
-  var config = {}; // 结果对象
-  utils.forEach(['url', 'method', 'params', 'data'], function(prop) {
-    if (typeof config2[prop] !== 'undefined') { 
-      config[prop] = config2[prop]
+module.exports = function mergeConfig(config1, config2) {
+  config2 = config2 || {};
+  var config = {};
+
+  var valueFromConfig2Keys = ['url', 'method', 'params', 'data'];
+  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy'];
+  var defaultToConfig2Keys = ['baseURL', 'url', 'transformRequest', 'transformResponse', 'paramsSerializer', 'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName', 'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent','httpsAgent', 'cancelToken', 'socketPath'];
+
+  utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
     }
   });
-  utils.forEach(['headers', 'auth', 'proxy'], function(prop) {
+
+  utils.forEach(mergeDeepPropertiesKeys, function mergeDeepProperties(prop) {
     if (utils.isObject(config2[prop])) {
       config[prop] = utils.deepMerge(config1[prop], config2[prop]);
     } else if (typeof config2[prop] !== 'undefined') {
@@ -312,13 +324,33 @@ function mergeConfig(config1, config2 = {}) {
       config[prop] = config1[prop];
     }
   });
-  utils.forEach(['baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer', 'timeout', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName', 'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'maxContentLength', 'validateStatus', 'maxRedirects', 'httpAgent', 'httpsAgent', 'cancelToken', 'socketPath'], function(prop) {
+
+  utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
     if (typeof config2[prop] !== 'undefined') {
-      config[prop] = config2[prop]; 
+      config[prop] = config2[prop];
     } else if (typeof config1[prop] !== 'undefined') {
-      config[prop] = config1[prop]; 
+      config[prop] = config1[prop];
     }
   });
+
+  var axiosKeys = valueFromConfig2Keys
+    .concat(mergeDeepPropertiesKeys)
+    .concat(defaultToConfig2Keys);
+
+  var otherKeys = Object
+    .keys(config2)
+    .filter(function filterAxiosKeys(key) {
+      return axiosKeys.indexOf(key) === -1;
+    });
+
+  utils.forEach(otherKeys, function otherKeysDefaultToConfig2(prop) {
+    if (typeof config2[prop] !== 'undefined') {
+      config[prop] = config2[prop];
+    } else if (typeof config1[prop] !== 'undefined') {
+      config[prop] = config1[prop];
+    }
+  });
+
   return config;
 };
 ```
@@ -329,7 +361,7 @@ function mergeConfig(config1, config2 = {}) {
 
 对于'headers', 'auth', 'proxy'属性需要深度合并，如果 config2 中的属性值为对象，就将 config1 和 config2 的该属性值深度合并。如果 config2 中属性值存在，但不是对象，则取 config2 的属性值。如果 config2 中该属性不存在，但 config1 中存在，并且是对象，把 config1 的该属性值内部进行深度合并，去除重复的属性。如果 config2 中该属性不存在，config1 中存在，但不是对象，就用 config1 的
 
-对于'baseURL', 'transformRequest'等属性，如果 config2 中有就用 config2 的，config2 中没有，但 config1 中有，就用 config1 的。
+对于'baseURL', 'transformRequest'等属性，和 config2 中出现的上面没有提到的属性，如果 config2 中有就用 config2 的，config2 中没有，但 config1 中有，就用 config1 的。
 
 我们看看 deepMerge 它和 merge 函数相似，但存在一点不同：
 
@@ -371,16 +403,16 @@ let newAxiosInstance = axios.create({
 axios.create 函数的实现只有简单的一句：
 
 ```js
-axios.create = function(instanceConfig) {
+axios.create = function create(instanceConfig) {
   return createInstance(mergeConfig(axios.defaults, instanceConfig));
-}
+};
 ```
 
 axios.create 是对 createInstance 函数的封装。
 
-axios.create 接收用户传入的配置对象 instanceConfig，然后调用 mergeConfig 将默认配置对象和 instanceConfig 合并，合并的结果传入 createInstance 函数执行。createInstance 返回一个新的 wrap 函数，即新的 axios。
+axios.create 接收用户传入的配置对象，然后调用 mergeConfig 将默认配置对象和传入的配置对象合并，合并的结果传入 createInstance 函数执行。createInstance 返回一个新的 wrap 函数，即新的 axios。
 
-可见 axios.create 就是新建一个 axios ，它所带的默认配置对象是由用户参与配置的。
+可见 axios.create 新建了一个 axios ，它所带的默认配置对象是由用户参与配置的。
 
 总结一下，改动配置对象一共有三种方式
 
@@ -419,9 +451,7 @@ Axios.prototype.request = function(config) {
   return promise;
 };
 ```
-此时的 config 是经过合并整合的。
-
-接着，定义数组 chain ，里面放了 dispatchRequest 函数和 undefined。接着创建一个成功值为 config 的 Promise 实例，赋给变量 promise。
+此时的 config 经过了合并整合。接着，定义数组 chain ，里面放了 dispatchRequest 函数和 undefined。接着创建一个成功值为 config 的 Promise 实例，赋给变量 promise。
 
 接下来是这几行代码：
 
@@ -440,8 +470,8 @@ this.interceptors.response.forEach(function pushResponseInterceptors(interceptor
 function InterceptorManager() {
   this.handlers = [];
 }
-InterceptorManager.prototype.forEach = function (fn) {
-  utils.forEach(this.handlers, function (h) {
+InterceptorManager.prototype.forEach = function forEach(fn) {
+  utils.forEach(this.handlers, function forEachHandler(h) {
     if (h !== null) {
       fn(h);
     }
@@ -470,7 +500,7 @@ pushResponseInterceptors 函数每次执行，会把 this.interceptors.response 
 
 ![a](/pics/res.cb.png)
 
-问题来了，handlers 数组怎么存了这些 interceptor 对象的？其实是用户调用 use 方法注册的。为什么叫 interceptor 呢，因为它起到拦截器的作用：
+问题来了，handlers 数组怎么存了这些 interceptor 对象的？其实是用户调用 use 方法注册的：
 
 ```js
 InterceptorManager.prototype.use = function use(fulfilled, rejected) {
@@ -528,11 +558,11 @@ while (chain.length) {
 
 ![a](/pics/then1.png)
 
-进入 while 循环之前， promise 实例的状态是成功，它调用 then，接收两个从 chain 数组 shift 出来的函数，作为 then 的成功回调和失败回调，将它们注册为异步执行的微任务，推入微任务队列中，then 返回的新的 promise 实例的状态是 pending，覆盖给 promise 变量
+进入 while 循环之前， promise 状态是成功，它调用 then，接收两个从 chain 数组 shift 出来的函数，作为 then 的成功回调和失败回调，将它们注册为异步执行的微任务，推入微任务队列中，then 返回的新的 promise 实例的状态是 pending，覆盖给 promise 变量
 
 ![a](/pics/then2.png)
 
-在 while 循环中，promise 继续调用 then，形成链式调用，chain 数组中的项被不断地成对shift出来，推入微任务队列中，直到 chain 数组到空，循环结束。
+在 while 循环中，promise 继续调用 then，形成链式调用，chain 数组中的项被不断地成对 shift 出来，推入微任务队列中，直到 chain 数组到空，循环结束。
 
 注意，结束 while 循环后的 promise 依然是一个状态为 pending 的 promise 实例，因为在执行同步代码，异步操作还没执行，还没有调用 resolve 或 reject 去更改 promise 的状态，最后 Axios.prototype.request 函数返回出该 promise。
 
@@ -549,18 +579,18 @@ while (chain.length) {
 ```js
 function dispatchRequest(config) {
   throwIfCancellationRequested(config);
-  config.headers = config.headers || {};// 确保config中headers对象存在
-  config.data = transformData(// 对请求的config.data进行转换
+  config.headers = config.headers || {};
+  config.data = transformData(
     config.data,
     config.headers,
     config.transformRequest
   );
-  config.headers = utils.merge(// 将config.headers的属性展平
+  config.headers = utils.merge(
     config.headers.common || {},
     config.headers[config.method] || {},
     config.headers || {}
   );
-  utils.forEach(// config.headers中关于请求方法的属性删掉
+  utils.forEach(
     ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
     function cleanHeaderConfig(method) {
       delete config.headers[method];
@@ -572,7 +602,7 @@ function dispatchRequest(config) {
   ```
 dispatchRequest 函数接收 config 对象，首先对 config.headers 和 config.data 做一些处理
 
-将 config.data, config.headers, config.transformRequest 传入 transformData 函数执行，返回值赋给 config.data 。我们看看 transformData 的实现：
+将 config.data, config.headers, config.transformRequest 传入 transformData 函数执行，返回值赋给 config.data。我们看看 transformData 的实现：
 
 ```js
 module.exports = function transformData(data, headers, fns) {
@@ -583,7 +613,7 @@ module.exports = function transformData(data, headers, fns) {
 };
 ```
 
-transformData 函数会遍历 config.transformRequest 数组，执行它里面的每个函数，传入 config.data, config.headers 执行，返回值再覆盖 config.data，循环结束后返回 config.data
+transformData 函数会遍历 config.transformRequest 数组，执行它里面的每个函数，传入 config.data, config.headers，返回值再覆盖 config.data，循环结束后返回 config.data
 
 我们看看默认的 config.transformRequest 数组：
 
@@ -617,7 +647,7 @@ var defaults = {
   // 
 };
 ```
-默认的 config.transformRequest 数组只存放了一个 transformRequest 函数。它首先将 headers 对象中的 'Accept' 和 'Content-Type' 的属性名规范化。
+默认的 config.transformRequest 数组只有一个 transformRequest 函数。它首先将 headers 对象中的 'Accept' 和 'Content-Type' 的属性名规范化。
 
 ```js
 module.exports = function normalizeHeaderName(headers, normalizedName) {
@@ -641,11 +671,11 @@ function setContentTypeIfUnset(headers, value) {
 }
 ```
 
-如果 config.headers 存在，但不存在 'Content-Type' 这个字段，就给它加上，属性值为 'application/x-www-form-urlencoded;charset=utf-8'，然后 transformRequest 直接返回 data.toString()，即把 URLSearchParams 对象转成了 URL 查詢字符串。
+如果 config.headers 存在，但不存在里面没有 'Content-Type' 属性，就给它加上，属性值为 'application/x-www-form-urlencoded;charset=utf-8'，然后 transformRequest 直接返回 data.toString()，即把 URLSearchParams 对象转成了 URL 查詢字符串。
 
 如果 config.data 是普通对象，也先调用 setContentTypeIfUnset 函数：
 
-同上，如果 'Content-Type' 字段不存在，就加上，属性值为 'application/json;charset=utf-8'，然后直接返回 JSON.stringify(data)，将对象类型的 data 转成 JSON 格式字符串。
+同上，如果没有 'Content-Type' ，就加上，属性值为 'application/json;charset=utf-8'，然后直接返回 JSON.stringify(data)，将 data 对象转成 JSON 格式字符串。
 
 不是以上的情况的话，直接返回 config.data 本身。
 
@@ -682,9 +712,7 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 即 config.headers 中每个 method 都有对应的属性值，是一个对象。
 
-于是 config.headers.common 和 config.headers[config.method] 和 config.headers 经过 merge 合并后，赋给 config.headers，就好像把它里面的属性展平了
-
-接下来，因为 headers 对象中各个 method 的属性值中的字段被拿出来了，所以要将它们删除：
+于是 config.headers.common 和 config.headers[config.method] 和 config.headers 经过 merge 合并后，赋给 config.headers，即 headers 对象中各个 method 的属性值中的字段被拿出来了，把它里面的属性展平了。
 
 ```js
 utils.forEach(['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
@@ -693,6 +721,7 @@ utils.forEach(['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
   }
 );
 ```
+config.headers[method] 对象中的属性被展平后，它就没有存在的意义了，所以删掉 config.headers 对象中关于 method 的属性
 
 接着，来到了重点：
 
@@ -738,7 +767,7 @@ function xhrAdapter(config) {
       true
     );
     // ...
-    // 监听 readyState，设置对应的处理回调函数
+    // 监听readyState，设置处理回调函数
     request.onreadystatechange = function() {
       if (!request || request.readyState !== 4) return // request对象为空或readyState不为4(它会从0变到4)，直接返回
       // XMLHttpRequest.status表示服务器响应的HTTP状态码，如果通信成功，为200。发出请求之前，它默认为0。
@@ -796,7 +825,7 @@ var defaults = {
 
 validateStatus 函数会判断 response.status 值，即 HTTP 响应状态码，如果它在 [200,300) 内，则返回 true，然后调用 resolve(response) 将 xhrAdapter 函数返回的 promise 实例的状态变为 resolved，如果不在 [200,300) 内，则返回 false，调用 reject 将 promise 实例状态改为 rejected。
 
-在 dispatchRequest 函数中，adapter 函数返回的promise继续调用 then，传入的成功回调和失败回调（刚刚省略没展示），它们对 adapter 返回的 promise 实例的成功值和失败值，即 response 和 reason，再次做加工：
+在 dispatchRequest 函数中，adapter 函数返回的 promise 继续调用 then，传入的成功回调和失败回调（刚刚省略没展示），它们对 adapter 返回的 promise 实例的成功值或失败值，即 response 或 reason，再次做加工：
 
 ```js
 function dispatchRequest(config) {
@@ -827,7 +856,7 @@ function dispatchRequest(config) {
 
 成功的回调最后返回处理后的 response 对象，失败的回调返回处理过的 Promise.reject(reason)
 
-这意味着，如果 HTTP 请求成功，dispatchRequest 函数返回的是成功值为 response 对象的，状态为 resolved 的 promise 实例。
+这意味着，如果 HTTP 请求成功，dispatchRequest 函数返回的是成功值为 response 对象的成功状态的 promise 实例。
 
 dispatchRequest 执行完，接着执行微任务队列中剩下的响应拦截器方法，它们接收 response 对象，对 response 对象做一些处理，再返回出 response，response 对象就像在微任务队列的后半部分传递，异步微任务队列执行完后，Axios.prototype.request 返回的 promise 的状态会变为 resolved 或 rejected。
 
@@ -841,7 +870,7 @@ dispatchRequest 执行完，接着执行微任务队列中剩下的响应拦截�
 
 config 对象在这个微任务队列中的前半部分传递，到了 dispatchRequest 方法，它执行 adapter 方法（对于浏览器就是 xhrAdapter 方法），xhrAdapter 是发起 XHR 请求的 promise 封装，会根据响应的状态决定将返回的 promise 转为 resolved 或 rejected 状态。
 
-在 dispatchRequest 中，adapter 的返回值再调用 then，传入成功和失败的回调，对响应的数据做再次处理，再把 response 对象返回出来。所以在接下来的微任务队列的后半部分，响应拦截器方法接收的是 response，对 response 对象做处理，response 相当于在队列中传递。
+在 dispatchRequest 中，adapter 的返回值再调用 then，传入成功和失败的回调，对响应的数据做再次处理，再把 response 对象返回出来。接下来的微任务队列的后半部分，响应拦截器方法接收的是 response，对 response 对象做处理，response 相当于在队列中传递。
 
 最后 Axios.prototype.request 经过 then 链式调用返回出来的 promise 的状态，会随着微任务队列执行结束而被确定下来。
 
