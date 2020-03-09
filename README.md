@@ -4,34 +4,13 @@
 
 Axios 不是一种新的技术，本质上是对原生 XHR 的封装，只不过它是基于 Promise 实现的版本。
 
-有以下特点：
-
-- 在浏览器中创建 XMLHttpRequest 对象获取数据
-- 在 node.js 创建 HTTP 请求
-- 支持 Promise
-- 拦截请求和响应
-- 转换请求数据和响应数据
-- 取消请求
-- 自动转换 JSON 数据
-- 客户端支持防御 XSRF
-
 它的流程大致如下：
 
 ![](/pics/process.png)
 
 ## **axios** 到底是什么
 
-从 webpack.config.js 文件中，我们可以看到入口文件是 index.js
-
-```js
-function generateConfig(name) {
-  var config = {
-    entry: './index.js',
-  };
-}
-```
-
-index.js 文件中只有一句：
+我们看入口文件 index.js。index.js 文件中只有一句：
 
 ```js
 module.exports = require('./lib/axios');
@@ -56,11 +35,9 @@ function createInstance(defaultConfig) {
 var axios = createInstance(defaults);
 ```
 
-createInstance 函数的返回值赋给了 axios
+createInstance 函数中，首先创建了一个 Axios 的实例 context，再调用 bind 函数，返回值赋给 instance，再两次调用 utils.extend 函数对 instance 进行扩展，最后返回出 instance，赋给了 axios。
 
-在 createInstance 函数中，首先创建了一个 Axios 的实例，再调用 bind 函数，返回值赋给 instance，再两次调用 utils.extend 函数对 instance 进行扩展，最后函数返回出 instance。
-
-可见，axios 实际指向 bind 函数的执行结果。我们看看 bind 函数：
+可见，axios 实际指向 bind 函数的返回值。我们看看 bind 函数：
 
 ```js
 module.exports = function bind(fn, thisArg) {
@@ -76,9 +53,9 @@ module.exports = function bind(fn, thisArg) {
 
 结合`var instance = bind(Axios.prototype.request, context)`来看：
 
-bind 函数接收 request 原型方法，和 Axios 实例 context，执行返回新的函数 wrap，并赋给 instance，因此 instance 指向 wrap 函数，又因为 axios 指向 bind 函数的执行结果，所以 axios 指向 wrap 函数。
+bind 函数接收原型方法 request，和 context，执行返回一个新的函数 wrap，并赋给 instance，因此 instance 指向 wrap 函数。因为 axios 指向 bind 函数的返回值，所以 axios 也指向 wrap 函数。
 
-如果 wrap 函数执行，则会返回 request 方法的执行结果，request 执行时的 this 指向 context，并接收 wrap 执行时接收的参数数组 args。可见该 bind 函数和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
+wrap 函数执行的话，会返回 request 方法的执行结果，且 request 执行时的 this 指向 context，并接收 wrap 执行时接收的参数数组 args。可见该 bind 函数和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
@@ -122,21 +99,21 @@ function forEach(obj, fn) {
 }
 ```
 
-forEach 函数接收的 obj 如果是 null 或 undefined，直接返回。
+forEach 函数接收的 obj 如果是空值，直接返回。
 
-如果 obj 不是对象，则将它放入一个数组中。然后判断如果 obj 是数组，遍历数组，调用回调函数 fn，传入当前遍历项和索引和被遍历的数组。如果 obj 是对象，则遍历 obj 的自有属性，调用 fn，传入当前遍历的属性值和属性和被遍历的对象。
+如果 obj 有值但不是对象，则将它放入一个数组中。然后判断如果 obj 是数组，遍历数组，对每一项调用回调函数 fn。如果 obj 是对象，则遍历 obj 的自有属性，调用 fn。
 
-因此，extend 函数就是通过调用 forEach 遍历对象 b 的自有属性，将键值对拷贝到对象 a 中，如果拷贝的是方法，则拷贝调用 bind 后的改绑了 this 为 thisArg 的方法。
+因此，extend 函数就是通过调用 forEach 遍历对象 b 的自有属性，将键值对拷贝到对象 a 中，如果拷贝的是方法，则拷贝改绑了 this 为 thisArg 的方法。
 
-因此两次调用 extend 是将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 对象上，如果拷贝的是方法，它里面的 this 统一指向 context。由于 instance 指向 wrap 函数，所以实际是给 wrap 函数添加这些属性和方法。
+两次 extend 将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 上。由于 instance 指向 wrap 函数，所以实际是给 wrap 函数添加这些属性和方法。
 
 通过在源码中打断点验证了我的分析：
 
 ![avatar](/pics/axios的指向.png)
 
-因为 axios 实际指向了 wrap 函数。实际执行并返回的是 Axios.prototype.request.apply(context, args) 。因此可以理解为 axios 指向指定了 this 的 Axios.prototype.request 方法。
+因为 axios 实际指向了 wrap 函数。所以 axios 执行并返回 Axios.prototype.request.apply(context, args) 。因此可以理解为 axios 指向指定了 this 的 Axios.prototype.request 方法。
 
-## 探究Axios构造函数
+## 探究 Axios 构造函数
 
 现在来考察一下 Axios 构造函数：
 
@@ -156,7 +133,7 @@ Axios.prototype.getUri = function (config) {
 };
 ```
 
-Axios 的实例挂载了两个属性：defaults 保存 Axios 接收的配置对象；interceptors，属性值是一个包含 request 和 response 两个属性的对象，各自属性值均为 InterceptorManager 实例。
+Axios 的实例挂载了两个属性：defaults，保存 Axios 接收的配置对象；interceptors，属性值是一个包含 request 和 response 两个属性的对象，各自属性值均为 InterceptorManager 实例。
 
 ![avatar](/pics/Axios实例的属性.png)
 
@@ -184,7 +161,7 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 ```
 前面提到过，Axios 原型上的属性和方法已经拷贝给 axios，所以 axios 可以直接调用 Axios 原型上的这些方法。
 
-这些 Axios 原型方法，都实际执行 request 方法。所接收的参数通过 utils.merge 函数合并为一个配置对象，传入 request 方法执行。
+这些 Axios 原型方法接收的参数通过 utils.merge 函数做合并，传入 request 方法执行。
 
 注意到 delete, get, head, options 这四个方法请求时是不传 data 的，post, put, patch 在请求时是带 data 的。
 
@@ -206,7 +183,7 @@ function merge(/* obj1, obj2, obj3, ... */) {
   return result;
 }
 ```
-merge 函数首先创建一个空对象 result，然后逐个遍历所有接收的参数(对象)，将对象的键值对添加到 result 中，如果发现 key 已经添加过，则判断，如果对应的属性值是对象，且新添加的属性值也是对象，则递归调用 merge 进行合并，merge 的返回值覆盖原来的属性值。
+merge 函数首先创建一个空对象 result，然后逐个遍历所有接收的参数(对象)，将键值对添加到 result 中，如果发现有属性已经添加过，则判断，如果对应的属性值和新添加的属性值都是对象，则递归调用 merge 进行合并，返回值覆盖原来的属性值。
 
 不满足都是对象的话，只需简单地将新的属性值覆盖上去就好。
 
@@ -259,11 +236,9 @@ var axios = createInstance(defaults);
 
 ![a](/pics/默认config.png)
 
-上面我们看到了 ./defaults 文件导出的默认配置对象，传入 createInstance 函数执行。
+./defaults 文件导出的默认配置对象，传入 createInstance 函数执行。然后传入 new Axios 执行，前面提到 Axios 会把接收的配置对象赋给实例的 defaults 属性，即 Axios 实例的 defaults 保存默认配置对象。
 
-在 createInstance 函数中，它传入 new Axios 执行，前面提到 Axios 构造函数会把接收的配置对象赋给实例的 defaults 属性，即 Axios 实例的 defaults 保存默认配置对象。
-
-那用户传入的自定义配置呢？axios 发起请求的调用接收用户传入的配置，然后实际调用 Axios.prototype.request 函数，我们看看 request 方法是怎么处理的：
+那用户传的自定义配置呢？axios 各种调用方式接收用户传入的配置对象，实际调用 Axios.prototype.request，我们看看 request 方法是怎么处理的：
 
 ```js
 Axios.prototype.request = function request(config) {
@@ -286,13 +261,13 @@ Axios.prototype.request = function request(config) {
   // ....
 };
 ```
-如果传入 request 的第一个参数是字符串，就认为第二个参数传的是配置对象，赋给 config，如果没传第二个参数，则 config 为一个空对象，把第一个参数的字符串赋给 config.url。
+如果传入 request 的第一个参数是字符串，则默认第二个参数传的是配置对象，赋给 config，如果没传第二个参数，则赋给 config 一个空对象，把第一个参数的字符串赋给 config.url。
 
-如果第一个参数不是字符串，则默认它传的是配置对象，直接把它赋给 config，如果什么都没传，赋给 config 一个空对象。
+如果第一个参数不是字符串，则默它是配置对象，把它赋给 config，如果什么都没传，赋给 config 一个空对象。
 
 接着调用 mergeConfig 函数将默认配置对象和 config 合并，返回值赋给 config。
 
-由此可知，用户不同方式的传参，在 request 函数中会被整合到一个 config 对象
+可见，用户不同方式的传参，在 request 函数中会被整合到一个 config 对象
 
 合并之后，如果 config.method 存在，则将它转为小写，如果不存在，则如果默认配置中配置了 method，则将它小写化并赋给 config.method，如果默认配置也没有配置 method，则默认为 'get'
 
@@ -410,7 +385,7 @@ axios.create = function create(instanceConfig) {
 
 axios.create 是对 createInstance 函数的封装。
 
-axios.create 接收用户传入的配置对象，然后调用 mergeConfig 将默认配置对象和传入的配置对象合并，合并的结果传入 createInstance 函数执行。createInstance 返回一个新的 wrap 函数，即新的 axios。
+axios.create 接收用户传入的配置对象，然后调用 mergeConfig 将它和默认配置对象合并，合并的结果传入 createInstance 函数执行，返回一个新的 wrap 函数，即新的 axios。
 
 可见 axios.create 新建了一个 axios ，它所带的默认配置对象是由用户参与配置的。
 
@@ -451,9 +426,9 @@ Axios.prototype.request = function(config) {
   return promise;
 };
 ```
-此时的 config 经过了合并整合。接着，定义数组 chain ，里面放了 dispatchRequest 函数和 undefined。接着创建一个成功值为 config 的 Promise 实例，赋给变量 promise。
+config 经过整合合并后。接着，定义数组 chain ，里面放了 dispatchRequest 函数和 undefined。接着创建一个成功值为 config 的 Promise 实例，赋给变量 promise。
 
-接下来是这几行代码：
+接下来：
 
 ```js
 this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
@@ -479,9 +454,9 @@ InterceptorManager.prototype.forEach = function forEach(fn) {
 };
 ```
 
-InterceptorManager 实例挂载了 handlers 属性，属性值为一个数组。
+InterceptorManager 实例挂载了一个 handlers 数组。
 
-InterceptorManager 的原型方法 forEach 做的事：遍历实例的 handlers 数组，将数组的每一个不为 null 的项传入 fn 执行。对于 this.interceptors.request 和 this.interceptors.response 调用 forEach 来说，fn 分别是 unshiftRequestInterceptors 函数和 pushResponseInterceptors 函数：
+InterceptorManager 的原型方法 forEach 做的事：遍历实例的 handlers 数组，将数组的每个不为 null 的项传入 fn 执行。对于 this.interceptors.request 和 this.interceptors.response 调用 forEach 来说，fn 分别是 unshiftRequestInterceptors 函数和 pushResponseInterceptors 函数：
 
 ```js
 function unshiftRequestInterceptors(interceptor) {
