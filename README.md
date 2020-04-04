@@ -2,7 +2,7 @@
 
 ## Axios是什么
 
-Axios 不是一种新的技术，本质上是基于 Promise 实现对原生 XHR 的封装，提供了一些高级特性。
+Axios 不是一种新的技术，本质上是用 Promise 对原生 XHR 的封装，并提供一些高级特性。
 
 它的流程大致如下：
 
@@ -22,7 +22,7 @@ lib/axios.js 模块导出是 axios：
 module.exports = axios;
 ```
 
-可见 axios 是整个库对外暴露的 API，看看它的定义：
+整个库对外暴露的的是 axios，看看它的定义：
 
 ```js
 function createInstance(defaultConfig) {
@@ -34,9 +34,7 @@ function createInstance(defaultConfig) {
 }
 var axios = createInstance(defaults);
 ```
-createInstance 函数的返回值赋给了 axios。
-
-createInstance 函数中，首先创建了一个 Axios 的实例 context，再调用 bind 函数生成 instance，再两次调用 utils.extend 函数对 instance 进行扩展，最后返回出 instance，赋给了 axios。
+axios 指向 createInstance 函数的返回值。createInstance 函数首先创建一个 Axios 的实例 context，再调用 bind 函数生成 instance，再两次调用 extend 函数对 instance 进行扩展，最后返回出 instance 赋给 axios。
 
 可见，axios 实际指向 bind 函数的返回值。我们看看 bind 函数：
 
@@ -54,16 +52,16 @@ module.exports = function bind(fn, thisArg) {
 
 结合`var instance = bind(Axios.prototype.request, context)`来看：
 
-bind 函数接收原型方法 request，和 context，执行返回新的函数 wrap，并赋给 instance。因为 axios 指向 bind 函数的返回值，所以 axios 指向 wrap 函数。
+bind 函数接收原型方法 request 和 context，执行返回新的函数 wrap 赋给 instance。因为 axios 指向 bind 函数的返回值，所以 axios 指向 wrap 函数。
 
-wrap 函数执行，实际执行 request 方法，且执行时的 this 指向 context，并接收 wrap 执行时接收的参数。这和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
+wrap 执行，实际执行 request，且执行时的 this 指向 context，并接收 wrap 执行时接收的参数。这和原生 bind 实现效果一样，`bind(Axios.prototype.request, context)` 相当于 `Axios.prototype.request.bind(context)`
 
 ```js
 utils.extend(instance, Axios.prototype, context);
 utils.extend(instance, context);
 ```
 
-接下来两次调用 utils.extend 函数，extend 函数如下：
+接下来两次调用 extend 函数，extend 函数如下：
 
 ```js
 function extend(a, b, thisArg) {
@@ -99,17 +97,17 @@ function forEach(obj, fn) {
   }
 }
 ```
-如果传入的 obj 有值但不是对象，则用一个数组包裹它。然后判断如果是数组，则遍历数组，对每一项调用回调 fn。如果 obj 是对象，则遍历对象的自有属性，调用 fn。
+如果传入的 obj 有值但不是对象类型，则用一个数组包裹它。然后判断如果是数组，则遍历数组，对每一项调用回调 fn。如果 obj 是对象，则遍历对象的自有属性，调用 fn。
 
-因此，extend 函数就是遍历对象 b 的自有属性，将键值对拷贝到对象 a 中，如果拷贝的是方法，则拷贝改绑了 this 为 thisArg 的方法。
+因此，extend 函数就是遍历对象 b 的自有属性，拷贝到对象 a，如果拷贝的是方法，则拷贝改绑了 this 为 thisArg 的方法。
 
-两次 extend 将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 上。由于 instance 指向 wrap 函数，所以实际是给 wrap 函数添加这些属性和方法。
+两次 extend 将 Axios 原型上的属性/方法，和 Axios 实例上的属性/方法都拷贝到 instance 上。由于 instance 指向 wrap 函数，所以实际是添加到了 wrap 函数身上。
 
 通过在源码中打断点验证了我的分析：
 
 ![avatar](/pics/axios的指向.png)
 
-因为 axios 实际指向了 wrap 函数。所以 axios 执行并返回 Axios.prototype.request.apply(context, args) 。因此可以理解为 axios 指向指定了 this 的 Axios.prototype.request 方法。
+因为 axios 实际指向了 wrap 函数。所以 axios 执行并返回 Axios.prototype.request.apply(context, args)，可以理解为 axios 指向指定了 this 的 Axios.prototype.request 方法。
 
 ## 探究 Axios 构造函数
 
@@ -131,13 +129,11 @@ Axios.prototype.getUri = function getUri(config) {
 };
 ```
 
-Axios 实例的 defaults 属性，保存 Axios 接收的配置对象。interceptors 属性，属性值是一个包含 request 和 response 两个属性的对象，各自属性值均为 InterceptorManager 实例。
+Axios 实例有 defaults 属性，保存 Axios 接收的配置对象。也有 interceptors 属性，值是一个拦截器对象，包含 request 和 response 两个属性，属性值均为 InterceptorManager 实例。
 
 ![avatar](/pics/Axios实例的属性.png)
 
-并且 Axios 有两个原型方法：request 和 getUri。
-
-Axios 的原型还会添加以下7种方法：
+并且 Axios 有两个原型方法：request 和 getUri。Axios 原型还会添加以下7种方法：
 
 ```js
 utils.forEach(['delete', 'get', 'head', 'options'], function (method) {
@@ -158,11 +154,9 @@ utils.forEach(['post', 'put', 'patch'], function (method) {
   };
 });
 ```
-前面提过，Axios 原型上的属性和方法会拷贝给 axios，所以 axios 可以直接调用 Axios 原型上的这些方法。
+已知，Axios 原型上的属性和方法会拷贝给 axios，所以 axios 可以直接调用 Axios 原型上的这些方法。
 
-这7种方法都实际调用 request 方法，接收的参数通过 utils.merge 合并，传入 request 执行。
-
-delete, get, head, options 这4个方法调用时是不传 data 的，post, put, patch 调用时是传 data 的。
+且这7种方法都实际调用 request 方法，接收的参数通过 merge 合并，传入 request 执行。不同的是：delete, get, head, options 这4个方法调用时是不传 data 的，post, put, patch 调用时是传 data 的。
 
 看看 merge 函数的实现：
 
@@ -182,7 +176,8 @@ function merge(/* obj1, obj2, obj3, ... */) {
   return result;
 }
 ```
-merge 函数首先创建一个空对象 result，逐个遍历所有传入的对象，将键值对拷贝到 result 中，如果发现有属性已经添加过，则判断，如果已添加的属性值和新添加的属性值都是对象，则递归调用 merge 进行合并，返回值覆盖原来的属性值。
+
+merge 函数首先创建一个空对象 result，逐个遍历所有传入的对象，将键值对拷贝到 result 中，如果发现有属性已经添加过，且已添加的属性值和新添加的属性值都是对象，则递归调用 merge 进行合并，返回值覆盖原来的属性值。
 
 不满足都是对象的话，只需简单地将新的属性值覆盖上去就好。
 
@@ -823,10 +818,6 @@ var defaults = {
 };
 ```
 数组只有一个 transformResponse 函数。如果 response.data 是字符串，则将进行JSON.parse 转换转成 JSON 对象并返回
-
-
-
-
 
 成功的回调最后返回处理后的 response 对象，失败的回调返回处理过的 Promise.reject(reason)
 
