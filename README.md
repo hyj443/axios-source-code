@@ -499,32 +499,40 @@ while 循环之前，promise 状态是成功，它调用 then，接收两个从 
 ```js
 function dispatchRequest(config) {
   throwIfCancellationRequested(config);
+
+  // Ensure headers exist
   config.headers = config.headers || {};
+
+  // Transform request data
   config.data = transformData(
     config.data,
     config.headers,
     config.transformRequest
   );
+
+  // Flatten headers
   config.headers = utils.merge(
     config.headers.common || {},
     config.headers[config.method] || {},
-    config.headers || {}
+    config.headers
   );
+
   utils.forEach(
     ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
     function cleanHeaderConfig(method) {
       delete config.headers[method];
     }
   );
+
   var adapter = config.adapter || defaults.adapter;
   return adapter(config).then( /*代码省略*/ );
 };
 ```
 
-dispatchRequest 函数首先调用 transformData 函数对 config.data 进行转换。我们看看 transformData 的实现：
+dispatchRequest 函数会调用 transformData 函数对 config.data 进行转换。我们看看 transformData 的实现：
 
 ```js
-function transformData(data, headers, fns) {
+module.exports = function transformData(data, headers, fns) {
   utils.forEach(fns, function transform(fn) {
     data = fn(data, headers);
   });
@@ -538,6 +546,7 @@ transformData 函数会遍历 config.transformRequest 数组，逐个执行每�
 
 ```js
 var defaults = {
+  // ...
   transformRequest: [function transformRequest(data, headers) {
     normalizeHeaderName(headers, 'Accept');
     normalizeHeaderName(headers, 'Content-Type');
@@ -562,13 +571,14 @@ var defaults = {
       return JSON.stringify(data);
     }
     return data;
-  }]
+  }],
+  // ...
 };
 ```
 defaults.transformRequest 数组只有一个 transformRequest 函数。它首先将 headers 对象中的 'Accept' 和 'Content-Type' 这两个头部字段名规范化。
 
 ```js
-function normalizeHeaderName(headers, normalizedName) {
+module.exports = function normalizeHeaderName(headers, normalizedName) {
   utils.forEach(headers, function processHeader(value, name) {
     if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
       headers[normalizedName] = value;
@@ -577,7 +587,7 @@ function normalizeHeaderName(headers, normalizedName) {
   });
 };
 ```
-normalizeHeaderName 函数遍历 headers 对象的属性，如果发现当前属性和传入的规范的头部字段名不同，但它们转大写后是一样的，则把规范化的头部名添加到 headers 对象中，再把原来的删掉。
+遍历 headers 对象的属性，如果发现当前属性和传入的规范的头部字段名不同，但它们转大写后是一样的，则把规范化的头部名添加到 headers 对象中，再把原来的删掉。
 
 回到 transformRequest，如果 config.data 是 FormData/ArrayBuffer/Buffer/Stream/File/Blob 类型，不用转换，返回它本身。如果是 ArrayBuffer 类型数据的一个 view，返回它的 buffer 属性值。如果是 URLSearchParams 对象，先调用 setContentTypeIfUnset 函数进行 headers 的设置：
 
@@ -589,7 +599,7 @@ function setContentTypeIfUnset(headers, value) {
 }
 ```
 
-如果 config.headers 存在，但里面没有 'Content-Type'，就给它加上，值为 'application/x-www-form-urlencoded;charset=utf-8'，然后返回 data.toString()，即把 URLSearchParams 对象转成了 URL 查詢字符串。
+如果 config.headers 存在，但里面没有 'Content-Type'，就给它加上，值为 'application/x-www-form-urlencoded;charset=utf-8'，然后返回 data.toString()，即把 URLSearchParams 对象转成了 URL 查询字符串。
 
 如果 config.data 是普通对象，也是先修整 config.headers，如果它里面没有 'Content-Type'，就加上，值为 'application/json;charset=utf-8'，然后返回 JSON.stringify(data)，将 data 对象转成 JSON 字符串。
 
@@ -598,11 +608,12 @@ function setContentTypeIfUnset(headers, value) {
 接下来处理 config.headers：
 
 ```js
-config.headers = utils.merge(
-  config.headers.common || {},
-  config.headers[config.method] || {},
-  config.headers || {}
-);
+// Flatten headers
+  config.headers = utils.merge(
+    config.headers.common || {},
+    config.headers[config.method] || {},
+    config.headers
+  );
 ```
 
 如果没有特别配置 config.headers.common，那它是由下面这个通用的头部字段合并而来的：
@@ -647,7 +658,7 @@ return adapter(config).then( /*代码省略*/ );
 ```
 adapter 优先使用用户配置的 adapter 方法，否则使用默认的 adapter。调用 adapter，传入已处理好的 config。返回值继续调用 then，dispatchRequest 函数最后返回 then 返回的 promise 实例。
 
-用户一般不会自己定义 adapter，我们看默认的 adapter：
+用户一般很少自己定义 adapter，我们看默认的 adapter：
 
 ```js
 var defaults = {
@@ -656,16 +667,18 @@ var defaults = {
 };
 function getDefaultAdapter() {
   var adapter;
-  if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
-    adapter = require('./adapters/http');
-  } else if (typeof XMLHttpRequest !== 'undefined') {
+  if (typeof XMLHttpRequest !== 'undefined') {
+    // For browsers use XHR adapter
     adapter = require('./adapters/xhr');
+  } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    // For node use HTTP adapter
+    adapter = require('./adapters/http');
   }
   return adapter;
 }
 ```
 
-getDefaultAdapter 函数会根据是 Node 环境还是浏览器环境，获取默认的 adapter 方法。
+getDefaultAdapter 函数会根据运行在 Node 还是浏览器，获取对应的 adapter。
 
 http.js 文件中使用 Node 的 http 模块来实现请求的发送，这里不分析。xhr.js 导出的 xhrAdapter 函数是 axios 在浏览器环境下使用的默认请求方法：
 
@@ -684,7 +697,7 @@ function xhrAdapter(config) {
     var request = new XMLHttpRequest(); // 创建 XMLHttpRequest 实例
     // ...
     var fullPath = buildFullPath(config.baseURL, config.url);
-    // 初始化请求，open方法的参数分别是：要使用的HTTP方法、要向其发送请求的URL、是否异步执行操作
+    // 初始化请求，open方法的参数分别是：要使用的HTTP方法、请求的URL、是否异步执行操作
     request.open(config.method.toUpperCase(), buildURL(fullPath, config.params, config.paramsSerializer), true);
    
     request.timeout = config.timeout; // 设置超时时间
@@ -798,14 +811,14 @@ function xhrAdapter(config) {
 };
 ```
 
-xhrAdapter 函数返回一个 promise 实例，它管控了一套 XMLHTTPRequest 发起 AJAX 请求的流程，具体分析见注释。
+xhrAdapter 函数返回一个 promise 实例，它管控了一套完整的 XMLHTTPRequest 发起 AJAX 请求的流程。
 
 异步请求成功后，根据返回的响应数据整合出 response 对象，response 传入 settle 执行，settle 会根据响应的数据决定是调用 resolve 还是 reject，我们看看 settle 函数：
 
 ```js
-function settle(resolve, reject, response) {
+module.exports = function settle(resolve, reject, response) {
   var validateStatus = response.config.validateStatus;
-  if (!validateStatus || validateStatus(response.status)) {
+  if (!response.status || !validateStatus || validateStatus(response.status)) {
     resolve(response);
   } else {
     reject(createError(
@@ -823,31 +836,36 @@ settle 函数首先获取 validateStatus 函数，优先使用用户配置的 va
 
 ```js
 var defaults = {
-  validateStatus (status) {
+  validateStatus: function validateStatus(status) {
     return status >= 200 && status < 300;
   }
 };
 ```
 
-默认的 validateStatus 函数会判断 response.status 值，即 HTTP 响应状态码，如果落在 [200,300)，则返回 true，然后调用 resolve(response) 将 xhrAdapter 函数返回的 promise 实例的状态变为 resolved，如果不在 [200,300)，则返回 false，调用 reject 将 promise 实例状态改为 rejected。
+validateStatus 函数会判断HTTP 响应状态码，如果落在 [200,300)，则返回 true，然后调用 resolve(response)，将 xhrAdapter 函数返回的 promise 实例的状态变为 resolved，如果不在 [200,300)，则返回 false，调用 reject 将 promise 实例状态改为 rejected。
 
 在 dispatchRequest 函数中，adapter 函数返回的 promise 继续调用 then，传入的成功回调和失败回调，对 adapter 返回的 promise 实例的成功值或失败值，即 response 或 reason，再次做加工：
 
 ```js
 function dispatchRequest(config) {
   // ...
-  return adapter(config).then((response) => {
+  return adapter(config).then(function onAdapterResolution(response) {
     throwIfCancellationRequested(config);
-    response.data = transformData(// 转换 response data
+
+    // Transform response data
+    response.data = transformData(
       response.data,
       response.headers,
       config.transformResponse
     );
+
     return response;
-  }, (reason) => {
+  }, function onAdapterRejection(reason) {
     if (!isCancel(reason)) {
       throwIfCancellationRequested(config);
-      if (reason && reason.response) { // 转换 response data
+
+      // Transform response data
+      if (reason && reason.response) {
         reason.response.data = transformData(
           reason.response.data,
           reason.response.headers,
@@ -855,6 +873,7 @@ function dispatchRequest(config) {
         );
       }
     }
+
     return Promise.reject(reason);
   });
 };
@@ -869,10 +888,10 @@ var defaults = {
     if (typeof data === 'string') {
       try {
         data = JSON.parse(data);
-      } catch (e) { }
+      } catch (e) { /* Ignore */ }
     }
     return data;
-  }]
+  }],
 };
 ```
 数组只有一个 transformResponse 函数。如果 response.data 是字符串，则将调用 JSON.parse 转成 JS 对象并返回。
@@ -886,18 +905,17 @@ dispatchRequest 执行完，接着执行微任务队列中剩下的响应拦截�
 request 方法返回的 promise 实例的状态取决于异步任务的结果。用户可以用这个 promise 实例继续调用 then，在 then 的回调中拿到 response 或 reason 对象。其中 response 包含了响应的 data。
 
 ## 核心源码的总结
-
-到目前为止，整个 axios 调用流程就讲完了。核心方法是：Axios.prototype.request。
+整个 axios 调用流程就这样过了一遍。核心是：Axios.prototype.request。
 
 如果用户设置了拦截器方法，会被推入 chain 的数组中，chain 数组形如：[请求拦截器的成功回调, 请求拦截器的失败回调... + dispathRequest + 响应拦截器的成功回调, 响应拦截器的失败回调...]，然后通过 promise 链式调用 then，将 chain 数组中的方法推入微任务队列中，等待异步执行。
 
-config 对象在这个微任务队列中的前半部分传递，到了 dispatchRequest 方法，它执行 adapter 方法（对于浏览器就是 xhrAdapter），xhrAdapter 是发起 XHR 请求的 promise 封装，会根据响应的状态决定将返回的 promise 转为 resolved 或 rejected 状态。
+config 对象在这个微任务队列中的前半部分传递，到了 dispatchRequest 执行 adapter（对于浏览器就是 xhrAdapter），xhrAdapter 是发起 XHR 请求的 promise 封装，会根据响应的状态决定将返回的 promise 转为 resolved 或 rejected 状态。
 
 在 dispatchRequest 中，adapter 的返回值再调用 then，传入成功和失败的回调，对响应的数据做再次处理，再把 response 对象返回出来。接下来的微任务队列的后半部分，响应拦截器方法接收的是 response，对 response 对象做处理，response 相当于在队列中传递。
 
 最后 Axios.prototype.request 经过 then 链式调用返回出来的 promise 的状态，会随着微任务队列执行结束而被确定下来。
 
-用户使用 axios 提供的 API 的返回值，调用 then 就能在回调中拿到 response/reason 对象。
+axios 调用的返回值，调用 then 就能在回调中拿到 response/reason 对象。
 
 这就是完整的流程。
 
